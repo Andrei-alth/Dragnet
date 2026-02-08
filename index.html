@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dragnet: Precision Ops v19</title>
+    <title>Dragnet: Evidence Wizard v20</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -20,10 +20,7 @@
             --neon-blue: #00e5ff; --neon-red: #ff3333; --neon-purple: #d400ff; --neon-green: #00ff41; --neon-orange: #ff9900;
         }
 
-        body.theme-linear {
-            --radius-sm: 0px; --radius-md: 0px; --radius-lg: 0px; 
-            --bg-glass: #000000;
-        }
+        body.theme-linear { --radius-sm: 0px; --radius-md: 0px; --radius-lg: 0px; --bg-glass: #000000; }
 
         body { 
             margin: 0; padding: 0; background: #000; 
@@ -38,7 +35,7 @@
         .leaflet-overlay-pane path.obstacle-poly { pointer-events: auto; }
 
         /* =========================================
-           2. DOSSIER PANEL
+           2. DOSSIER PANEL & ANALYTICS
            ========================================= */
         #dossier-panel {
             position: fixed; top: 0; left: 0; height: 100%; width: 100%; max-width: 400px;
@@ -125,6 +122,24 @@
         /* --- EVIDENCE SYSTEM --- */
         #view-evidence { display: none; flex-direction: column; height: 100%; background: #0f0f0f; }
         
+        .ev-phase { display: none; animation: slideIn 0.3s ease-out; }
+        .ev-phase.active { display: block; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* Phase 1: Type Selection */
+        .ev-type-opt {
+            background: #181818; border: 1px solid #333; padding: 20px;
+            margin-bottom: 10px; border-radius: var(--radius-sm); cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between;
+            transition: all 0.2s;
+        }
+        .ev-type-opt:hover { background: #222; }
+        .ev-type-opt.selected { 
+            border-color: var(--neon-orange); background: rgba(255, 153, 0, 0.1); 
+            color: var(--neon-orange); font-weight: bold;
+        }
+        .ev-icon { font-size: 18px; margin-right: 15px; }
+
         .camera-box {
             border: 2px dashed #444; background: #0a0a0a; border-radius: var(--radius-sm);
             padding: 30px 20px; text-align: center; cursor: pointer; color: #888;
@@ -171,6 +186,7 @@
             letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
         }
         .btn-secure-ev { background: var(--neon-orange); }
+        .btn-disabled { opacity: 0.3; pointer-events: none; }
 
         .btn-delete-pro {
             width: 100%; padding: 12px; background: transparent; color: var(--neon-red);
@@ -297,16 +313,9 @@
         .icon-tree { background: transparent; display: flex; align-items: center; justify-content: center; }
         .icon-tree svg { width: 24px; height: 24px; stroke: #00ff41; stroke-width: 1.5; fill: none; opacity: 0.9; }
 
-        /* --- CIA TACTICAL USER MARKER --- */
-        .user-marker {
-            display: flex; align-items: center; justify-content: center;
-            transition: transform 0.1s linear; /* Smooth rotation */
-        }
-        .user-chevron {
-            width: 16px; height: 16px; 
-            fill: var(--neon-blue); 
-            filter: drop-shadow(0 0 4px var(--neon-blue));
-        }
+        /* USER MARKER */
+        .user-marker { display: flex; align-items: center; justify-content: center; transition: transform 0.1s linear; }
+        .user-chevron { width: 16px; height: 16px; fill: var(--neon-blue); filter: drop-shadow(0 0 4px var(--neon-blue)); }
 
         /* Drawing Instructions */
         #draw-guide { position: absolute; top: 80px; width: 100%; text-align: center; pointer-events: none; z-index: 1000; display: none; }
@@ -413,11 +422,8 @@
 
                 <div class="form-section" style="border-color: var(--neon-orange);">
                     <span class="section-label" style="color: #fff;">05 // EVIDENCE LOG</span>
-                    
                     <div id="ev-dashboard"></div>
-
                     <div id="evidence-list-container"></div>
-                    
                     <button class="btn-action" style="margin-top:10px; border-color: var(--neon-orange); color: var(--neon-orange); background: rgba(255, 153, 0, 0.1);" onclick="openEvidenceForm()">+ LOG NEW EVIDENCE</button>
                 </div>
 
@@ -430,42 +436,67 @@
 
         <div id="view-evidence">
             <div class="dossier-header">
-                <button class="panel-close" onclick="switchView('form')">←</button>
-                <span class="panel-title">EVIDENCE ENTRY</span>
+                <button class="panel-close" onclick="evBack()">←</button>
+                <span class="panel-title" id="ev-wiz-title">PHASE 1: ACQUISITION</span>
                 <div style="width:24px;"></div>
             </div>
+            
             <div class="form-content">
-                <div class="form-section">
-                    <div class="form-group">
-                        <label class="input-label">EVIDENCE TYPE</label>
-                        <select id="ev-type" class="modern-input">
-                            <option value="Footprint">👣 FOOTPRINT / TIRE TRACK</option>
-                            <option value="Paper">📄 DOCUMENT / PAPER</option>
-                            <option value="Material">🧵 FIBER / MATERIAL</option>
-                            <option value="Object">📦 PHYSICAL OBJECT</option>
-                        </select>
+                
+                <div id="ev-phase-1" class="ev-phase active">
+                    <span class="section-label">SELECT EVIDENCE CLASSIFICATION</span>
+                    
+                    <div class="ev-type-opt" onclick="evSelectType('Footprint', this)">
+                        <div><span class="ev-icon">👣</span> FOOTPRINT / TRACK</div>
+                        <div class="radio-circle"></div>
                     </div>
+                    <div class="ev-type-opt" onclick="evSelectType('Paper', this)">
+                        <div><span class="ev-icon">📄</span> DOCUMENT / PAPER</div>
+                        <div class="radio-circle"></div>
+                    </div>
+                    <div class="ev-type-opt" onclick="evSelectType('Material', this)">
+                        <div><span class="ev-icon">🧵</span> FIBER / MATERIAL</div>
+                        <div class="radio-circle"></div>
+                    </div>
+                    <div class="ev-type-opt" onclick="evSelectType('Object', this)">
+                        <div><span class="ev-icon">📦</span> PHYSICAL OBJECT</div>
+                        <div class="radio-circle"></div>
+                    </div>
+
+                    <div style="margin-top:20px;">
+                        <button id="btn-ev-step1" class="btn-save-pro btn-secure-ev btn-disabled" onclick="evNext(2)">CONFIRM TYPE</button>
+                    </div>
+                </div>
+
+                <div id="ev-phase-2" class="ev-phase">
+                    <span class="section-label">METADATA ENTRY</span>
                     <div class="form-group">
-                        <label class="input-label">LOG NAME</label>
+                        <label class="input-label">LOG IDENTIFIER</label>
                         <input type="text" id="ev-name" class="modern-input" placeholder="e.g. Muddy Boot Print (Size 10)">
                     </div>
                     <div class="form-group">
-                        <label class="input-label">DATE / TIME DISCOVERED</label>
+                        <label class="input-label">TIMESTAMP</label>
                         <input type="datetime-local" id="ev-date" class="modern-input">
                     </div>
-                    
-                    <label class="input-label" style="margin-top:20px;">PHOTOGRAPHIC RECORD</label>
+                    <div style="margin-top:20px;">
+                        <button class="btn-save-pro btn-secure-ev" onclick="evNext(3)">CONFIRM DETAILS</button>
+                    </div>
+                </div>
+
+                <div id="ev-phase-3" class="ev-phase">
+                    <span class="section-label">PHOTOGRAPHIC RECORD</span>
                     <div class="camera-box" id="ev-camera-box" onclick="document.getElementById('ev-photo-input').click()">
                         <div class="camera-icon" id="ev-camera-icon">📷</div>
                         <span id="ev-photo-prompt">TAP TO OPEN CAMERA</span>
                         <img id="ev-photo-preview" style="display:none; width:100%; border-radius:var(--radius-sm); margin-top:10px; border: 1px solid #444;">
                     </div>
                     <input type="file" id="ev-photo-input" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoUpload(event)">
+                    
+                    <div style="margin-top:20px;">
+                        <button class="btn-save-pro btn-secure-ev" onclick="saveEvidence()">SECURE EVIDENCE</button>
+                    </div>
                 </div>
-                
-                <div class="form-actions">
-                    <button class="btn-save-pro btn-secure-ev" onclick="saveEvidence()">SECURE EVIDENCE</button>
-                </div>
+
             </div>
         </div>
     </div>
@@ -493,6 +524,7 @@
                 <span style="font-size:11px;font-weight:700;color:#888;">SPEED (KM/H)</span>
                 <input type="number" id="input-speed" class="big-input" value="5" min="1">
             </div>
+            
             <button id="btn-main" class="btn-action" onclick="toggleTracking()">INITIATE TRACKING</button>
         </div>
 
@@ -580,7 +612,9 @@
             drawPoints: [], drawMarkers: [], layerTransit: false, layerComm: false, layerNight: false, currentRadius: 0,
             activeEvFilter: null,
             userTracking: localStorage.getItem('dragnet_gps') !== 'false', 
-            compassHeading: 0
+            compassHeading: 0,
+            // Evidence Wizard State
+            evWizard: { step: 1, type: null }
         };
         let timerInterval;
         let currentEditId = null;
@@ -850,7 +884,7 @@
                 screen.classList.remove('active');
             }
 
-            state.activeEvFilter = null; // Reset filter on new open
+            state.activeEvFilter = null; 
             renderEvidenceDashboard(s);
             switchView('form');
         }
@@ -945,7 +979,7 @@
             if(state.activeSuspectId) { openEditMode(state.activeSuspectId); document.getElementById('dossier-panel').classList.add('open'); }
         }
 
-        // --- NEW: EVIDENCE DASHBOARD & FILTERING ---
+        // --- NEW: EVIDENCE DASHBOARD & WIZARD ---
 
         function renderEvidenceDashboard(suspect) {
             let counts = {};
@@ -955,7 +989,6 @@
 
             let dashContainer = document.getElementById('ev-dashboard');
             let chipHTML = '';
-            
             const typeIcons = { 'Footprint': '👣', 'Paper': '📄', 'Material': '🧵', 'Object': '📦' };
 
             for (const [type, count] of Object.entries(counts)) {
@@ -1005,9 +1038,18 @@
         }
 
         function openEvidenceForm() {
+            // Reset to Phase 1
+            state.evWizard.step = 1;
+            state.evWizard.type = null;
+            document.querySelectorAll('.ev-phase').forEach(p => p.classList.remove('active'));
+            document.getElementById('ev-phase-1').classList.add('active');
+            document.getElementById('ev-wiz-title').innerText = "PHASE 1: ACQUISITION";
+            document.getElementById('btn-ev-step1').classList.add('btn-disabled');
+            document.querySelectorAll('.ev-type-opt').forEach(el => el.classList.remove('selected'));
+
+            // Clear inputs
             document.getElementById('ev-name').value = '';
-            let now = new Date();
-            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            let now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('ev-date').value = now.toISOString().slice(0,16);
             
             currentPhotoBase64 = null;
@@ -1017,6 +1059,32 @@
             document.getElementById('ev-camera-box').style.padding = '30px 20px';
             
             switchView('evidence');
+        }
+
+        function evSelectType(type, element) {
+            state.evWizard.type = type;
+            document.querySelectorAll('.ev-type-opt').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            document.getElementById('btn-ev-step1').classList.remove('btn-disabled');
+        }
+
+        function evNext(step) {
+            state.evWizard.step = step;
+            document.querySelectorAll('.ev-phase').forEach(p => p.classList.remove('active'));
+            
+            if(step === 2) {
+                document.getElementById('ev-phase-2').classList.add('active');
+                document.getElementById('ev-wiz-title').innerText = "PHASE 2: METADATA";
+            } else if(step === 3) {
+                document.getElementById('ev-phase-3').classList.add('active');
+                document.getElementById('ev-wiz-title').innerText = "PHASE 3: CAPTURE";
+            }
+        }
+
+        function evBack() {
+            if(state.evWizard.step === 3) evNext(2);
+            else if(state.evWizard.step === 2) evNext(1);
+            else switchView('form');
         }
 
         function handlePhotoUpload(event) {
@@ -1053,7 +1121,7 @@
         }
 
         function saveEvidence() {
-            let type = document.getElementById('ev-type').value;
+            if(!state.evWizard.type) return;
             let name = document.getElementById('ev-name').value || "Unnamed Intel";
             let date = document.getElementById('ev-date').value;
 
@@ -1063,7 +1131,7 @@
             if(!s) return;
             if(!s.evidence) s.evidence = [];
 
-            s.evidence.push({ type: type, name: name, date: date, photo: currentPhotoBase64 });
+            s.evidence.push({ type: state.evWizard.type, name: name, date: date, photo: currentPhotoBase64 });
             saveDB();
             openEditMode(currentEditId);
         }
@@ -1151,7 +1219,7 @@
                                     let poly = turf.polygon([turfCoords]); let area = turf.area(poly);
                                     if (area > 10000) {
                                         let center = L.polygon(latlngs).getBounds().getCenter();
-                                        let treeIcon = L.divIcon({ className: 'icon-tree', html: '<svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z" stroke="#00ff41" fill="none" stroke-width="2"/><line x1="12" y1="22" x2="12" y2="16" stroke="#00ff41" stroke-width="2"/></svg>', iconSize: [24, 24] });
+                                        let treeIcon = L.divIcon({ className: 'icon-tree', html: '<svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z" stroke="#00ff41" stroke-width="2"/><line x1="12" y1="22" x2="12" y2="16" stroke="#00ff41" stroke-width="2"/></svg>', iconSize: [24, 24] });
                                         L.marker(center, {icon: treeIcon}).addTo(densityLayer);
                                     }
                                 } catch(err) { }
