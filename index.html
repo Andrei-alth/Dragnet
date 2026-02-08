@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dragnet: Scene Ops v22</title>
+    <title>Dragnet: Forensic Ops v23</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -17,7 +17,8 @@
         :root {
             --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px;
             --bg-glass: rgba(10, 10, 10, 0.95);
-            --neon-blue: #00e5ff; --neon-red: #ff3333; --neon-purple: #d400ff; --neon-green: #00ff41; --neon-orange: #ff9900;
+            --neon-blue: #00e5ff; --neon-red: #ff3333; --neon-purple: #d400ff; --neon-green: #00ff41; 
+            --forensic-gold: #FFD700; /* New Evidence Color */
         }
 
         body.theme-linear { --radius-sm: 0px; --radius-md: 0px; --radius-lg: 0px; --bg-glass: #000000; }
@@ -135,8 +136,8 @@
         }
         .ev-type-opt:hover { background: #222; }
         .ev-type-opt.selected { 
-            border-color: var(--neon-orange); background: rgba(255, 153, 0, 0.1); 
-            color: var(--neon-orange); font-weight: bold;
+            border-color: var(--forensic-gold); background: rgba(255, 215, 0, 0.1); 
+            color: var(--forensic-gold); font-weight: bold;
         }
         .ev-icon { font-size: 18px; margin-right: 15px; }
 
@@ -146,7 +147,7 @@
             font-weight: bold; font-size: 12px; transition: all 0.3s;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .camera-box:hover { border-color: var(--neon-orange); color: var(--neon-orange); }
+        .camera-box:hover { border-color: var(--forensic-gold); color: var(--forensic-gold); }
         .camera-icon { font-size: 32px; margin-bottom: 10px; }
         
         /* Category Dashboard */
@@ -158,9 +159,9 @@
             text-transform: uppercase; transition: all 0.2s;
             display: flex; align-items: center; gap: 6px;
         }
-        .ev-cat-chip.active { background: rgba(255, 153, 0, 0.15); border-color: var(--neon-orange); color: #fff; }
+        .ev-cat-chip.active { background: rgba(255, 215, 0, 0.15); border-color: var(--forensic-gold); color: #fff; }
         .ev-cat-count { background: #444; color: #fff; padding: 2px 5px; border-radius: 4px; font-size: 9px; }
-        .ev-cat-chip.active .ev-cat-count { background: var(--neon-orange); color: #000; }
+        .ev-cat-chip.active .ev-cat-count { background: var(--forensic-gold); color: #000; }
 
         .ev-card {
             background: #111; border: 1px solid #333; padding: 10px; border-radius: var(--radius-sm);
@@ -185,7 +186,7 @@
             border: none; border-radius: var(--radius-sm); font-weight: 700; font-size: 14px;
             letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
         }
-        .btn-secure-ev { background: var(--neon-orange); }
+        .btn-secure-ev { background: var(--forensic-gold); color: #000; }
         .btn-disabled { opacity: 0.3; pointer-events: none; }
 
         .btn-delete-pro {
@@ -317,31 +318,34 @@
         .user-marker { display: flex; align-items: center; justify-content: center; transition: transform 0.1s linear; }
         .user-chevron { width: 16px; height: 16px; fill: var(--neon-blue); filter: drop-shadow(0 0 4px var(--neon-blue)); }
 
-        /* CIA EVIDENCE MARKER */
-        .ev-flag {
-            position: relative; width: 30px; height: 34px;
-        }
-        .ev-flag-box {
-            width: 30px; height: 24px;
-            background: rgba(0,0,0,0.8);
-            border: 1px solid var(--neon-orange);
-            border-radius: 2px;
+        /* PROFESSIONAL EVIDENCE MARKER */
+        .icon-evidence {
+            background: transparent;
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 5px rgba(255, 153, 0, 0.3);
         }
-        .ev-flag-pole {
-            width: 2px; height: 10px;
-            background: var(--neon-orange);
-            margin: 0 auto;
+        .ev-pin-container {
+            position: relative; width: 32px; height: 32px;
+            display: flex; justify-content: center; align-items: center;
         }
-        .ev-flag-svg {
-            width: 16px; height: 16px; fill: var(--neon-orange);
+        .ev-pin-circle {
+            width: 28px; height: 28px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid var(--forensic-gold);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
-        .ev-flag-label {
-            position: absolute; top: -8px; right: -4px;
-            background: var(--neon-orange); color: #000;
-            font-size: 8px; font-weight: bold; padding: 1px 3px;
-            border-radius: 2px;
+        /* Triangle Pointer */
+        .ev-pin-pointer {
+            position: absolute; bottom: -6px;
+            width: 0; height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid var(--forensic-gold);
+        }
+        .ev-pin-svg {
+            width: 16px; height: 16px;
+            fill: var(--forensic-gold);
         }
 
         /* Drawing Instructions */
@@ -447,14 +451,14 @@
                     </div>
                 </div>
 
-                <div class="form-section" style="border-color: var(--neon-orange);">
+                <div class="form-section" style="border-color: var(--forensic-gold);">
                     <span class="section-label" style="color: #fff;">05 // EVIDENCE LOG</span>
                     
                     <div id="ev-dashboard"></div>
 
                     <div id="evidence-list-container"></div>
                     
-                    <button class="btn-action" style="margin-top:10px; border-color: var(--neon-orange); color: var(--neon-orange); background: rgba(255, 153, 0, 0.1);" onclick="openEvidenceForm()">+ LOG NEW EVIDENCE</button>
+                    <button class="btn-action" style="margin-top:10px; border-color: var(--forensic-gold); color: var(--forensic-gold); background: rgba(255, 215, 0, 0.1);" onclick="openEvidenceForm()">+ LOG NEW EVIDENCE</button>
                 </div>
 
                 <div class="form-actions">
@@ -993,22 +997,24 @@
             if(suspect.evidence) {
                 suspect.evidence.forEach(ev => {
                     if(ev.location) {
+                        // FORENSIC MARKER (PIN)
                         let evIconHtml = `
-                            <div class="ev-flag">
-                                <div class="ev-flag-box">
-                                    <svg class="ev-flag-svg" viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5a1 1 0 0 0 .4.8l2.1 1.7A10 10 0 0 0 12 22a10 10 0 0 0 5.5-4l2.1-1.7a1 1 0 0 0 .4-.8V6c0-3.5-4-4-8-4z"/></svg>
-                                    <div class="ev-flag-label">EV</div>
+                            <div class="ev-pin-container">
+                                <div class="ev-pin-circle">
+                                    <svg class="ev-pin-svg" viewBox="0 0 24 24">
+                                        <path d="M10 2C6 2 4 6 4 10c0 5 2 8 5 10c0 0-1 2-1 4l4 0c0-2-1-4-1-4c3-2 5-5 5-10c0-4-2-8-6-8z"/>
+                                    </svg>
                                 </div>
-                                <div class="ev-flag-pole"></div>
+                                <div class="ev-pin-pointer"></div>
                             </div>
                         `;
-                        let evIcon = L.divIcon({ className: '', html: evIconHtml, iconSize: [30, 34], iconAnchor: [15, 34] });
+                        let evIcon = L.divIcon({ className: 'icon-evidence', html: evIconHtml, iconSize: [32, 32], iconAnchor: [16, 32] });
                         let marker = L.marker([ev.location.lat, ev.location.lng], {icon: evIcon}).addTo(evidenceLayer);
                         
                         let popupContent = `
                             <div style="width:160px; text-align:center;">
                                 <img src="${ev.photo}" style="width:100%; border-radius:4px; margin-bottom:5px;">
-                                <div style="font-weight:bold; color:#ff9900; font-size:12px;">${ev.type.toUpperCase()}</div>
+                                <div style="font-weight:bold; color:#FFD700; font-size:12px;">${ev.type.toUpperCase()}</div>
                                 <div style="font-size:10px;">${ev.name}</div>
                             </div>
                         `;
@@ -1051,6 +1057,7 @@
 
             let dashContainer = document.getElementById('ev-dashboard');
             let chipHTML = '';
+            
             const typeIcons = { 'Footprint': '👣', 'Paper': '📄', 'Material': '🧵', 'Object': '📦' };
 
             for (const [type, count] of Object.entries(counts)) {
@@ -1208,21 +1215,23 @@
             
             // Immediately render on map if this suspect is active context
             if(state.activeSuspectId === currentEditId) {
+                // FORENSIC MARKER (PIN)
                 let evIconHtml = `
-                    <div class="ev-flag">
-                        <div class="ev-flag-box">
-                            <svg class="ev-flag-svg" viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5a1 1 0 0 0 .4.8l2.1 1.7A10 10 0 0 0 12 22a10 10 0 0 0 5.5-4l2.1-1.7a1 1 0 0 0 .4-.8V6c0-3.5-4-4-8-4z"/></svg>
-                            <div class="ev-flag-label">EV</div>
+                    <div class="ev-pin-container">
+                        <div class="ev-pin-circle">
+                            <svg class="ev-pin-svg" viewBox="0 0 24 24">
+                                <path d="M10 2C6 2 4 6 4 10c0 5 2 8 5 10c0 0-1 2-1 4l4 0c0-2-1-4-1-4c3-2 5-5 5-10c0-4-2-8-6-8z"/>
+                            </svg>
                         </div>
-                        <div class="ev-flag-pole"></div>
+                        <div class="ev-pin-pointer"></div>
                     </div>
                 `;
-                let evIcon = L.divIcon({ className: '', html: evIconHtml, iconSize: [30, 34], iconAnchor: [15, 34] });
+                let evIcon = L.divIcon({ className: 'icon-evidence', html: evIconHtml, iconSize: [32, 32], iconAnchor: [16, 32] });
                 let marker = L.marker([geoLoc.lat, geoLoc.lng], {icon: evIcon}).addTo(evidenceLayer);
                 let popupContent = `
                     <div style="width:160px; text-align:center;">
                         <img src="${currentPhotoBase64}" style="width:100%; border-radius:4px; margin-bottom:5px;">
-                        <div style="font-weight:bold; color:#ff9900; font-size:12px;">${state.evWizard.type.toUpperCase()}</div>
+                        <div style="font-weight:bold; color:#FFD700; font-size:12px;">${state.evWizard.type.toUpperCase()}</div>
                         <div style="font-size:10px;">${name}</div>
                     </div>
                 `;
