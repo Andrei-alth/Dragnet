@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dragnet: Bio-Ops v24</title>
+    <title>Dragnet: Intel Markers v25</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -19,7 +19,10 @@
             --bg-glass: rgba(10, 10, 10, 0.95);
             --neon-blue: #00e5ff; --neon-red: #ff3333; --neon-purple: #d400ff; 
             --neon-green: #00ff41; --neon-orange: #ff9900;
-            --forensic-green: #00ff41; /* NEW BIOMETRIC COLOR */
+            --forensic-green: #00ff41; /* Fingerprints */
+            --forensic-yellow: #FFD700; /* Documents */
+            --forensic-purple: #d400ff; /* Material */
+            --forensic-blue: #00e5ff; /* Object */
         }
 
         body.theme-linear { --radius-sm: 0px; --radius-md: 0px; --radius-lg: 0px; --bg-glass: #000000; }
@@ -137,8 +140,8 @@
         }
         .ev-type-opt:hover { background: #222; }
         .ev-type-opt.selected { 
-            border-color: var(--forensic-green); background: rgba(0, 255, 65, 0.1); 
-            color: var(--forensic-green); font-weight: bold;
+            border-color: var(--neon-blue); background: rgba(0, 229, 255, 0.1); 
+            color: var(--neon-blue); font-weight: bold;
         }
         .ev-icon { font-size: 18px; margin-right: 15px; }
 
@@ -148,7 +151,7 @@
             font-weight: bold; font-size: 12px; transition: all 0.3s;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .camera-box:hover { border-color: var(--forensic-green); color: var(--forensic-green); }
+        .camera-box:hover { border-color: var(--neon-blue); color: var(--neon-blue); }
         .camera-icon { font-size: 32px; margin-bottom: 10px; }
         
         /* Category Dashboard */
@@ -187,7 +190,7 @@
             border: none; border-radius: var(--radius-sm); font-weight: 700; font-size: 14px;
             letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
         }
-        .btn-secure-ev { background: var(--forensic-green); color: #000; }
+        .btn-secure-ev { background: var(--neon-blue); color: #000; }
         .btn-disabled { opacity: 0.3; pointer-events: none; }
 
         .btn-delete-pro {
@@ -319,7 +322,7 @@
         .user-marker { display: flex; align-items: center; justify-content: center; transition: transform 0.1s linear; }
         .user-chevron { width: 16px; height: 16px; fill: var(--neon-blue); filter: drop-shadow(0 0 4px var(--neon-blue)); }
 
-        /* PROFESSIONAL EVIDENCE MARKER (FINGERPRINT) */
+        /* PROFESSIONAL EVIDENCE MARKER (DYNAMIC) */
         .icon-evidence {
             background: transparent;
             display: flex; align-items: center; justify-content: center;
@@ -332,7 +335,6 @@
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
         }
-        /* Triangle Pointer */
         .ev-print-pointer {
             position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
             width: 0; height: 0;
@@ -341,7 +343,7 @@
             border-top: 6px solid var(--forensic-green);
         }
         .ev-print-svg {
-            width: 24px; height: 24px;
+            width: 20px; height: 20px;
             fill: var(--forensic-green);
         }
 
@@ -448,14 +450,14 @@
                     </div>
                 </div>
 
-                <div class="form-section" style="border-color: var(--forensic-green);">
+                <div class="form-section" style="border-color: var(--neon-orange);">
                     <span class="section-label" style="color: #fff;">05 // EVIDENCE LOG</span>
                     
                     <div id="ev-dashboard"></div>
 
                     <div id="evidence-list-container"></div>
                     
-                    <button class="btn-action" style="margin-top:10px; border-color: var(--forensic-green); color: var(--forensic-green); background: rgba(0, 255, 65, 0.1);" onclick="openEvidenceForm()">+ LOG NEW EVIDENCE</button>
+                    <button class="btn-action" style="margin-top:10px; border-color: var(--neon-orange); color: var(--neon-orange); background: rgba(255, 153, 0, 0.1);" onclick="openEvidenceForm()">+ LOG NEW EVIDENCE</button>
                 </div>
 
                 <div class="form-actions">
@@ -994,13 +996,28 @@
             if(suspect.evidence) {
                 suspect.evidence.forEach(ev => {
                     if(ev.location) {
-                        // FORENSIC MARKER (FINGERPRINT PIN)
+                        
+                        let color, svgPath;
+                        if(ev.type === 'Footprint') {
+                            color = '#00ff41'; // Green
+                            svgPath = '<path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 14 3 12.01 3c-1.98 0-3.86.47-5.57 1.41-.24.13-.54.04-.68-.2-.13-.24-.04-.55.2-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 6.03 1.52.25.13.34.43.21.67-.09.18-.26.28-.44.28zM3.5 9.72c-.1 0-.2-.03-.29-.09-.23-.16-.28-.47-.12-.7.99-1.4 2.25-2.5 3.75-3.27C9.98 4.04 14 4.03 17.15 5.65c1.5.77 2.76 1.86 3.75 3.25.16.22.11.54-.12.7-.23.16-.54.11-.7-.12-.9-1.26-2.04-2.25-3.39-2.94-2.87-1.47-6.54-1.47-9.4.01-1.36.7-2.5 1.7-3.4 2.96-.08.14-.23.21-.39.21zm6.25 12.07c-.13 0-.26-.05-.35-.15-.87-.87-1.34-1.43-2.01-2.64-.69-1.23-1.05-2.73-1.05-4.34 0-2.97 2.54-5.39 5.66-5.39s5.66 2.42 5.66 5.39c0 .28-.22.5-.5.5s-.5-.22-.5-.5c0-2.42-2.09-4.39-4.66-4.39-2.57 0-4.66 1.97-4.66 4.39 0 1.44.32 2.77.93 3.85.64 1.15 1.08 1.64 1.85 2.42.19.2.19.51 0 .71-.11.1-.24.15-.37.15zm7.17-1.85c-1.19 0-2.24-.3-3.1-.89-1.49-1.01-2.38-2.65-2.38-4.39 0-.28.22-.5.5-.5s.5.22.5.5c0 1.41.72 2.74 1.94 3.56.71.48 1.54.71 2.54.71.24 0 .64-.03 1.04-.1.27-.05.53.13.58.41.05.27-.13.53-.41.58-.57.11-1.07.12-1.21.12zM14.91 22c-.04 0-.09-.01-.13-.02-1.59-.44-2.63-1.03-3.72-2.1-1.4-1.39-2.17-3.24-2.17-5.22 0-1.62 1.38-2.94 3.08-2.94 1.7 0 3.08 1.32 3.08 2.94 0 1.07.93 1.94 2.08 1.94s2.08-.87 2.08-1.94c0-.37-.2-.67-.22-.67-.18-.2-.2-.51 0-.71.2-.2.51-.2.71 0 .01.01.49.5.49 1.38 0 1.62-1.38 2.94-3.08 2.94-1.7 0-3.08-1.32-3.08-2.94 0-1.07-.93-1.94-2.08-1.94-1.15 0-2.08.87-2.08 1.94 0 1.71.66 3.31 1.87 4.51.95.94 1.86 1.46 3.27 1.85.27.07.42.35.35.61-.05.23-.26.38-.47.38z"/>';
+                        } else if(ev.type === 'Paper') {
+                            color = '#FFD700'; // Yellow
+                            svgPath = '<path d="M18.8 2.6c-.6-.6-1.5-.6-2.1 0L5 14.3v4.2h4.2L20.9 6.8c.6-.6.6-1.5 0-2.1l-2.1-2.1zM8.3 16.5H7.1v-1.2l9.1-9.1 1.2 1.2-9.1 9.1z M3 21h18"/>'; // Pen Nib
+                        } else if(ev.type === 'Material') {
+                            color = '#d400ff'; // Purple
+                            svgPath = '<path d="M7 2h10c1.1 0 2 .9 2 2v16c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2zm0 2v16h10V4H7z M9 6h6v2H9V6zm0 4h6v2H9v-2zm0 4h6v2H9v-2z"/>'; // Fiber/Thread ish
+                        } else {
+                            color = '#00e5ff'; // Blue
+                            svgPath = '<path d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18-.19 0-.39-.06-.57-.18l-7.9-4.44A.991.991 0 0 1 3 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44A.996.996 0 0 1 12 2c.19 0 .39.06.57.18l7.9 4.44c.32.17.53.5.53.88v9zM12 4.15 6.04 7.5 12 10.85l5.96-3.35L12 4.15zM5 8.66v7.18l6 3.37v-7.2L5 8.66zm14 7.18v-7.18l-6 3.37v7.2l6-3.37z"/>'; // Cube
+                        }
+
                         let evIconHtml = `
-                            <div class="ev-print-box">
-                                <svg class="ev-print-svg" viewBox="0 0 24 24">
-                                    <path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 14 3 12.01 3c-1.98 0-3.86.47-5.57 1.41-.24.13-.54.04-.68-.2-.13-.24-.04-.55.2-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 6.03 1.52.25.13.34.43.21.67-.09.18-.26.28-.44.28zM3.5 9.72c-.1 0-.2-.03-.29-.09-.23-.16-.28-.47-.12-.7.99-1.4 2.25-2.5 3.75-3.27C9.98 4.04 14 4.03 17.15 5.65c1.5.77 2.76 1.86 3.75 3.25.16.22.11.54-.12.7-.23.16-.54.11-.7-.12-.9-1.26-2.04-2.25-3.39-2.94-2.87-1.47-6.54-1.47-9.4.01-1.36.7-2.5 1.7-3.4 2.96-.08.14-.23.21-.39.21zm6.25 12.07c-.13 0-.26-.05-.35-.15-.87-.87-1.34-1.43-2.01-2.64-.69-1.23-1.05-2.73-1.05-4.34 0-2.97 2.54-5.39 5.66-5.39s5.66 2.42 5.66 5.39c0 .28-.22.5-.5.5s-.5-.22-.5-.5c0-2.42-2.09-4.39-4.66-4.39-2.57 0-4.66 1.97-4.66 4.39 0 1.44.32 2.77.93 3.85.64 1.15 1.08 1.64 1.85 2.42.19.2.19.51 0 .71-.11.1-.24.15-.37.15zm7.17-1.85c-1.19 0-2.24-.3-3.1-.89-1.49-1.01-2.38-2.65-2.38-4.39 0-.28.22-.5.5-.5s.5.22.5.5c0 1.41.72 2.74 1.94 3.56.71.48 1.54.71 2.54.71.24 0 .64-.03 1.04-.1.27-.05.53.13.58.41.05.27-.13.53-.41.58-.57.11-1.07.12-1.21.12zM14.91 22c-.04 0-.09-.01-.13-.02-1.59-.44-2.63-1.03-3.72-2.1-1.4-1.39-2.17-3.24-2.17-5.22 0-1.62 1.38-2.94 3.08-2.94 1.7 0 3.08 1.32 3.08 2.94 0 1.07.93 1.94 2.08 1.94s2.08-.87 2.08-1.94c0-.37-.2-.67-.22-.67-.18-.2-.2-.51 0-.71.2-.2.51-.2.71 0 .01.01.49.5.49 1.38 0 1.62-1.38 2.94-3.08 2.94-1.7 0-3.08-1.32-3.08-2.94 0-1.07-.93-1.94-2.08-1.94-1.15 0-2.08.87-2.08 1.94 0 1.71.66 3.31 1.87 4.51.95.94 1.86 1.46 3.27 1.85.27.07.42.35.35.61-.05.23-.26.38-.47.38z"/>
+                            <div class="ev-print-box" style="border-color:${color}; box-shadow:0 0 8px ${color}50;">
+                                <svg class="ev-print-svg" viewBox="0 0 24 24" style="fill:${color};">
+                                    ${svgPath}
                                 </svg>
-                                <div class="ev-print-pointer"></div>
+                                <div class="ev-print-pointer" style="border-top-color:${color};"></div>
                             </div>
                         `;
                         let evIcon = L.divIcon({ className: 'icon-evidence', html: evIconHtml, iconSize: [34, 40], iconAnchor: [17, 40] });
@@ -1009,7 +1026,7 @@
                         let popupContent = `
                             <div style="width:160px; text-align:center;">
                                 <img src="${ev.photo}" style="width:100%; border-radius:4px; margin-bottom:5px;">
-                                <div style="font-weight:bold; color:#00ff41; font-size:12px;">${ev.type.toUpperCase()}</div>
+                                <div style="font-weight:bold; color:${color}; font-size:12px;">${ev.type.toUpperCase()}</div>
                                 <div style="font-size:10px;">${ev.name}</div>
                             </div>
                         `;
@@ -1054,13 +1071,20 @@
             let chipHTML = '';
             
             const typeIcons = { 'Footprint': '👣', 'Paper': '📄', 'Material': '🧵', 'Object': '📦' };
+            const typeColors = { 'Footprint': 'var(--forensic-green)', 'Paper': 'var(--forensic-yellow)', 'Material': 'var(--forensic-purple)', 'Object': 'var(--forensic-blue)' };
+            const hexColors = { 'Footprint': '#00ff41', 'Paper': '#FFD700', 'Material': '#d400ff', 'Object': '#00e5ff' };
 
             for (const [type, count] of Object.entries(counts)) {
                 let activeClass = (state.activeEvFilter === type) ? 'active' : '';
+                let borderColor = hexColors[type] || '#888';
+                
+                // Add inline styles for specific colors since CSS variables in JS need computed styles or direct usage
+                let style = activeClass ? `border-color:${borderColor}; color:#fff; background:${borderColor}20;` : ``;
+
                 chipHTML += `
-                    <div class="ev-cat-chip ${activeClass}" onclick="filterEvidence('${type}')">
+                    <div class="ev-cat-chip ${activeClass}" style="${style}" onclick="filterEvidence('${type}')">
                         ${typeIcons[type] || ''} ${type}
-                        <span class="ev-cat-count">${count}</span>
+                        <span class="ev-cat-count" style="${activeClass ? `background:${borderColor};color:#000` : ''}">${count}</span>
                     </div>
                 `;
             }
@@ -1109,7 +1133,10 @@
             document.getElementById('ev-phase-1').classList.add('active');
             document.getElementById('ev-wiz-title').innerText = "PHASE 1: ACQUISITION";
             document.getElementById('btn-ev-step1').classList.add('btn-disabled');
-            document.querySelectorAll('.ev-type-opt').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.ev-type-opt').forEach(el => {
+                el.classList.remove('selected');
+                el.style.borderColor = ''; el.style.background = ''; el.style.color = ''; // Reset inline styles
+            });
 
             // Clear inputs
             document.getElementById('ev-name').value = '';
@@ -1127,8 +1154,20 @@
 
         function evSelectType(type, element) {
             state.evWizard.type = type;
-            document.querySelectorAll('.ev-type-opt').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.ev-type-opt').forEach(el => {
+                el.classList.remove('selected');
+                el.style.borderColor = ''; el.style.background = ''; el.style.color = '';
+            });
+            
             element.classList.add('selected');
+            
+            // Apply specific color styling
+            const hexColors = { 'Footprint': '#00ff41', 'Paper': '#FFD700', 'Material': '#d400ff', 'Object': '#00e5ff' };
+            let color = hexColors[type];
+            element.style.borderColor = color;
+            element.style.background = color + '15'; // 15 = low opacity hex
+            element.style.color = color;
+
             document.getElementById('btn-ev-step1').classList.remove('btn-disabled');
         }
 
@@ -1195,7 +1234,7 @@
             if(!s) return;
             if(!s.evidence) s.evidence = [];
 
-            // CAPTURE GPS LOCATION (Using DEVICE LOCATION if available, else map center)
+            // CAPTURE GPS LOCATION
             let geoLoc = currentUserPosition ? { lat: currentUserPosition.lat, lng: currentUserPosition.lng } : { lat: currentCenter.lat, lng: currentCenter.lng };
 
             s.evidence.push({ 
@@ -1208,27 +1247,8 @@
             
             saveDB();
             
-            // Immediately render on map if this suspect is active context
             if(state.activeSuspectId === currentEditId) {
-                // FORENSIC MARKER (FINGERPRINT PIN)
-                let evIconHtml = `
-                    <div class="ev-print-box">
-                        <svg class="ev-print-svg" viewBox="0 0 24 24">
-                            <path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 14 3 12.01 3c-1.98 0-3.86.47-5.57 1.41-.24.13-.54.04-.68-.2-.13-.24-.04-.55.2-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 6.03 1.52.25.13.34.43.21.67-.09.18-.26.28-.44.28zM3.5 9.72c-.1 0-.2-.03-.29-.09-.23-.16-.28-.47-.12-.7.99-1.4 2.25-2.5 3.75-3.27C9.98 4.04 14 4.03 17.15 5.65c1.5.77 2.76 1.86 3.75 3.25.16.22.11.54-.12.7-.23.16-.54.11-.7-.12-.9-1.26-2.04-2.25-3.39-2.94-2.87-1.47-6.54-1.47-9.4.01-1.36.7-2.5 1.7-3.4 2.96-.08.14-.23.21-.39.21zm6.25 12.07c-.13 0-.26-.05-.35-.15-.87-.87-1.34-1.43-2.01-2.64-.69-1.23-1.05-2.73-1.05-4.34 0-2.97 2.54-5.39 5.66-5.39s5.66 2.42 5.66 5.39c0 .28-.22.5-.5.5s-.5-.22-.5-.5c0-2.42-2.09-4.39-4.66-4.39-2.57 0-4.66 1.97-4.66 4.39 0 1.44.32 2.77.93 3.85.64 1.15 1.08 1.64 1.85 2.42.19.2.19.51 0 .71-.11.1-.24.15-.37.15zm7.17-1.85c-1.19 0-2.24-.3-3.1-.89-1.49-1.01-2.38-2.65-2.38-4.39 0-.28.22-.5.5-.5s.5.22.5.5c0 1.41.72 2.74 1.94 3.56.71.48 1.54.71 2.54.71.24 0 .64-.03 1.04-.1.27-.05.53.13.58.41.05.27-.13.53-.41.58-.57.11-1.07.12-1.21.12zM14.91 22c-.04 0-.09-.01-.13-.02-1.59-.44-2.63-1.03-3.72-2.1-1.4-1.39-2.17-3.24-2.17-5.22 0-1.62 1.38-2.94 3.08-2.94 1.7 0 3.08 1.32 3.08 2.94 0 1.07.93 1.94 2.08 1.94s2.08-.87 2.08-1.94c0-.37-.2-.67-.22-.67-.18-.2-.2-.51 0-.71.2-.2.51-.2.71 0 .01.01.49.5.49 1.38 0 1.62-1.38 2.94-3.08 2.94-1.7 0-3.08-1.32-3.08-2.94 0-1.07-.93-1.94-2.08-1.94-1.15 0-2.08.87-2.08 1.94 0 1.71.66 3.31 1.87 4.51.95.94 1.86 1.46 3.27 1.85.27.07.42.35.35.61-.05.23-.26.38-.47.38z"/>
-                        </svg>
-                        <div class="ev-print-pointer"></div>
-                    </div>
-                `;
-                let evIcon = L.divIcon({ className: 'icon-evidence', html: evIconHtml, iconSize: [34, 40], iconAnchor: [17, 40] });
-                let marker = L.marker([geoLoc.lat, geoLoc.lng], {icon: evIcon}).addTo(evidenceLayer);
-                let popupContent = `
-                    <div style="width:160px; text-align:center;">
-                        <img src="${currentPhotoBase64}" style="width:100%; border-radius:4px; margin-bottom:5px;">
-                        <div style="font-weight:bold; color:#00ff41; font-size:12px;">${state.evWizard.type.toUpperCase()}</div>
-                        <div style="font-size:10px;">${name}</div>
-                    </div>
-                `;
-                marker.bindPopup(popupContent);
+                loadSuspectContext(currentEditId); // Refresh map markers
             }
 
             openEditMode(currentEditId);
@@ -1240,7 +1260,6 @@
                 s.evidence = s.evidence.filter(ev => ev.date !== dateKey);
                 saveDB();
                 renderEvidenceDashboard(s);
-                // Ideally also remove from map, but a reload handles it for now
                 if(state.activeSuspectId === currentEditId) loadSuspectContext(currentEditId);
             }
         }
