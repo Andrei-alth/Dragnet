@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dragnet: Geo-Evidence v21</title>
+    <title>Dragnet: Scene Ops v22</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -317,15 +317,31 @@
         .user-marker { display: flex; align-items: center; justify-content: center; transition: transform 0.1s linear; }
         .user-chevron { width: 16px; height: 16px; fill: var(--neon-blue); filter: drop-shadow(0 0 4px var(--neon-blue)); }
 
-        /* Evidence Marker */
-        .icon-evidence {
-            background: transparent;
-            display: flex; align-items: center; justify-content: center;
+        /* CIA EVIDENCE MARKER */
+        .ev-flag {
+            position: relative; width: 30px; height: 34px;
         }
-        .icon-evidence svg {
-            width: 32px; height: 32px;
-            fill: var(--neon-orange);
-            filter: drop-shadow(0 0 6px var(--neon-orange));
+        .ev-flag-box {
+            width: 30px; height: 24px;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--neon-orange);
+            border-radius: 2px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 5px rgba(255, 153, 0, 0.3);
+        }
+        .ev-flag-pole {
+            width: 2px; height: 10px;
+            background: var(--neon-orange);
+            margin: 0 auto;
+        }
+        .ev-flag-svg {
+            width: 16px; height: 16px; fill: var(--neon-orange);
+        }
+        .ev-flag-label {
+            position: absolute; top: -8px; right: -4px;
+            background: var(--neon-orange); color: #000;
+            font-size: 8px; font-weight: bold; padding: 1px 3px;
+            border-radius: 2px;
         }
 
         /* Drawing Instructions */
@@ -632,6 +648,7 @@
         };
         let timerInterval;
         let currentEditId = null;
+        let currentUserPosition = null; // DISTINCT VARIABLE FOR GPS LOC
 
         // Evidence State
         let currentPhotoBase64 = null; 
@@ -705,7 +722,7 @@
 
         map.on('locationfound', function(e) {
             userLayer.clearLayers();
-            currentCenter = e.latlng; // Update global current center to GPS position when found
+            currentUserPosition = e.latlng; // SAVE EXACT DEVICE LOCATION
             
             // CIA TACTICAL MARKER (Small rotating arrowhead)
             let iconHtml = `
@@ -976,14 +993,18 @@
             if(suspect.evidence) {
                 suspect.evidence.forEach(ev => {
                     if(ev.location) {
-                        let evIcon = L.divIcon({ 
-                            className: 'icon-evidence', 
-                            html: '<svg viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5a1 1 0 0 0 .4.8l2.1 1.7A10 10 0 0 0 12 22a10 10 0 0 0 5.5-4l2.1-1.7a1 1 0 0 0 .4-.8V6c0-3.5-4-4-8-4z" opacity="0.8"/></svg>', 
-                            iconSize: [24, 24] 
-                        });
+                        let evIconHtml = `
+                            <div class="ev-flag">
+                                <div class="ev-flag-box">
+                                    <svg class="ev-flag-svg" viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5a1 1 0 0 0 .4.8l2.1 1.7A10 10 0 0 0 12 22a10 10 0 0 0 5.5-4l2.1-1.7a1 1 0 0 0 .4-.8V6c0-3.5-4-4-8-4z"/></svg>
+                                    <div class="ev-flag-label">EV</div>
+                                </div>
+                                <div class="ev-flag-pole"></div>
+                            </div>
+                        `;
+                        let evIcon = L.divIcon({ className: '', html: evIconHtml, iconSize: [30, 34], iconAnchor: [15, 34] });
                         let marker = L.marker([ev.location.lat, ev.location.lng], {icon: evIcon}).addTo(evidenceLayer);
                         
-                        // Popup with image
                         let popupContent = `
                             <div style="width:160px; text-align:center;">
                                 <img src="${ev.photo}" style="width:100%; border-radius:4px; margin-bottom:5px;">
@@ -1030,7 +1051,6 @@
 
             let dashContainer = document.getElementById('ev-dashboard');
             let chipHTML = '';
-            
             const typeIcons = { 'Footprint': '👣', 'Paper': '📄', 'Material': '🧵', 'Object': '📦' };
 
             for (const [type, count] of Object.entries(counts)) {
@@ -1173,8 +1193,8 @@
             if(!s) return;
             if(!s.evidence) s.evidence = [];
 
-            // CAPTURE GPS LOCATION (Using current map center/user location)
-            let geoLoc = { lat: currentCenter.lat, lng: currentCenter.lng };
+            // CAPTURE GPS LOCATION (Using DEVICE LOCATION if available, else map center)
+            let geoLoc = currentUserPosition ? { lat: currentUserPosition.lat, lng: currentUserPosition.lng } : { lat: currentCenter.lat, lng: currentCenter.lng };
 
             s.evidence.push({ 
                 type: state.evWizard.type, 
@@ -1188,11 +1208,16 @@
             
             // Immediately render on map if this suspect is active context
             if(state.activeSuspectId === currentEditId) {
-                let evIcon = L.divIcon({ 
-                    className: 'icon-evidence', 
-                    html: '<svg viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5a1 1 0 0 0 .4.8l2.1 1.7A10 10 0 0 0 12 22a10 10 0 0 0 5.5-4l2.1-1.7a1 1 0 0 0 .4-.8V6c0-3.5-4-4-8-4z" opacity="0.8"/></svg>', 
-                    iconSize: [24, 24] 
-                });
+                let evIconHtml = `
+                    <div class="ev-flag">
+                        <div class="ev-flag-box">
+                            <svg class="ev-flag-svg" viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5a1 1 0 0 0 .4.8l2.1 1.7A10 10 0 0 0 12 22a10 10 0 0 0 5.5-4l2.1-1.7a1 1 0 0 0 .4-.8V6c0-3.5-4-4-8-4z"/></svg>
+                            <div class="ev-flag-label">EV</div>
+                        </div>
+                        <div class="ev-flag-pole"></div>
+                    </div>
+                `;
+                let evIcon = L.divIcon({ className: '', html: evIconHtml, iconSize: [30, 34], iconAnchor: [15, 34] });
                 let marker = L.marker([geoLoc.lat, geoLoc.lng], {icon: evIcon}).addTo(evidenceLayer);
                 let popupContent = `
                     <div style="width:160px; text-align:center;">
