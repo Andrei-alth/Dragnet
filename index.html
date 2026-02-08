@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dragnet: Forensic Ops v23</title>
+    <title>Dragnet: Biometrics v24</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -17,8 +17,9 @@
         :root {
             --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px;
             --bg-glass: rgba(10, 10, 10, 0.95);
-            --neon-blue: #00e5ff; --neon-red: #ff3333; --neon-purple: #d400ff; --neon-green: #00ff41; 
-            --forensic-gold: #FFD700; /* New Evidence Color */
+            --neon-blue: #00e5ff; --neon-red: #ff3333; --neon-purple: #d400ff; 
+            --neon-green: #00ff41; /* MAIN EVIDENCE COLOR */
+            --neon-orange: #ff9900;
         }
 
         body.theme-linear { --radius-sm: 0px; --radius-md: 0px; --radius-lg: 0px; --bg-glass: #000000; }
@@ -36,7 +37,7 @@
         .leaflet-overlay-pane path.obstacle-poly { pointer-events: auto; }
 
         /* =========================================
-           2. DOSSIER PANEL & ANALYTICS
+           2. DOSSIER PANEL
            ========================================= */
         #dossier-panel {
             position: fixed; top: 0; left: 0; height: 100%; width: 100%; max-width: 400px;
@@ -136,8 +137,8 @@
         }
         .ev-type-opt:hover { background: #222; }
         .ev-type-opt.selected { 
-            border-color: var(--forensic-gold); background: rgba(255, 215, 0, 0.1); 
-            color: var(--forensic-gold); font-weight: bold;
+            border-color: var(--neon-green); background: rgba(0, 255, 65, 0.1); 
+            color: var(--neon-green); font-weight: bold;
         }
         .ev-icon { font-size: 18px; margin-right: 15px; }
 
@@ -147,7 +148,7 @@
             font-weight: bold; font-size: 12px; transition: all 0.3s;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-        .camera-box:hover { border-color: var(--forensic-gold); color: var(--forensic-gold); }
+        .camera-box:hover { border-color: var(--neon-green); color: var(--neon-green); }
         .camera-icon { font-size: 32px; margin-bottom: 10px; }
         
         /* Category Dashboard */
@@ -159,9 +160,9 @@
             text-transform: uppercase; transition: all 0.2s;
             display: flex; align-items: center; gap: 6px;
         }
-        .ev-cat-chip.active { background: rgba(255, 215, 0, 0.15); border-color: var(--forensic-gold); color: #fff; }
+        .ev-cat-chip.active { background: rgba(0, 255, 65, 0.15); border-color: var(--neon-green); color: #fff; }
         .ev-cat-count { background: #444; color: #fff; padding: 2px 5px; border-radius: 4px; font-size: 9px; }
-        .ev-cat-chip.active .ev-cat-count { background: var(--forensic-gold); color: #000; }
+        .ev-cat-chip.active .ev-cat-count { background: var(--neon-green); color: #000; }
 
         .ev-card {
             background: #111; border: 1px solid #333; padding: 10px; border-radius: var(--radius-sm);
@@ -186,7 +187,7 @@
             border: none; border-radius: var(--radius-sm); font-weight: 700; font-size: 14px;
             letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
         }
-        .btn-secure-ev { background: var(--forensic-gold); color: #000; }
+        .btn-secure-ev { background: var(--neon-green); color: #000; }
         .btn-disabled { opacity: 0.3; pointer-events: none; }
 
         .btn-delete-pro {
@@ -298,15 +299,6 @@
         }
         @keyframes borderPulse { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
 
-        /* Settings Panel */
-        #settings-panel { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2100; display: none; align-items: center; justify-content: center; }
-        #settings-panel.open { display: flex; }
-        .settings-card { background: #111; border: 1px solid #333; width: 90%; max-width: 300px; padding: 20px; border-radius: var(--radius-lg); text-align: center; }
-        .theme-option { display: flex; align-items: center; justify-content: space-between; background: #1a1a1a; padding: 15px; margin-bottom: 10px; border: 1px solid #333; border-radius: var(--radius-sm); cursor: pointer; }
-        .theme-option.selected { border-color: var(--neon-blue); background: rgba(0, 229, 255, 0.1); }
-        .theme-preview { width: 20px; height: 20px; background: #333; border: 1px solid #555; }
-        .preview-rounded { border-radius: 6px; } .preview-linear { border-radius: 0px; }
-
         /* Markers & Icons */
         .icon-density { background: rgba(212, 0, 255, 0.2); border: 1px solid #d400ff; border-radius: 50%; box-shadow: 0 0 10px #d400ff; }
         .icon-density-inner { width: 6px; height: 6px; background: #d400ff; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
@@ -318,7 +310,7 @@
         .user-marker { display: flex; align-items: center; justify-content: center; transition: transform 0.1s linear; }
         .user-chevron { width: 16px; height: 16px; fill: var(--neon-blue); filter: drop-shadow(0 0 4px var(--neon-blue)); }
 
-        /* PROFESSIONAL EVIDENCE MARKER */
+        /* PROFESSIONAL EVIDENCE MARKER (FINGERPRINT) */
         .icon-evidence {
             background: transparent;
             display: flex; align-items: center; justify-content: center;
@@ -330,10 +322,10 @@
         .ev-pin-circle {
             width: 28px; height: 28px;
             background: rgba(0, 0, 0, 0.9);
-            border: 2px solid var(--forensic-gold);
+            border: 2px solid var(--neon-green);
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 10px rgba(0, 255, 65, 0.3);
         }
         /* Triangle Pointer */
         .ev-pin-pointer {
@@ -341,11 +333,11 @@
             width: 0; height: 0;
             border-left: 6px solid transparent;
             border-right: 6px solid transparent;
-            border-top: 8px solid var(--forensic-gold);
+            border-top: 8px solid var(--neon-green);
         }
         .ev-pin-svg {
-            width: 16px; height: 16px;
-            fill: var(--forensic-gold);
+            width: 18px; height: 18px;
+            fill: var(--neon-green);
         }
 
         /* Drawing Instructions */
@@ -451,14 +443,14 @@
                     </div>
                 </div>
 
-                <div class="form-section" style="border-color: var(--forensic-gold);">
+                <div class="form-section" style="border-color: var(--neon-green);">
                     <span class="section-label" style="color: #fff;">05 // EVIDENCE LOG</span>
                     
                     <div id="ev-dashboard"></div>
 
                     <div id="evidence-list-container"></div>
                     
-                    <button class="btn-action" style="margin-top:10px; border-color: var(--forensic-gold); color: var(--forensic-gold); background: rgba(255, 215, 0, 0.1);" onclick="openEvidenceForm()">+ LOG NEW EVIDENCE</button>
+                    <button class="btn-action" style="margin-top:10px; border-color: var(--neon-green); color: var(--neon-green); background: rgba(0, 255, 65, 0.1);" onclick="openEvidenceForm()">+ LOG NEW EVIDENCE</button>
                 </div>
 
                 <div class="form-actions">
@@ -1002,7 +994,7 @@
                             <div class="ev-pin-container">
                                 <div class="ev-pin-circle">
                                     <svg class="ev-pin-svg" viewBox="0 0 24 24">
-                                        <path d="M10 2C6 2 4 6 4 10c0 5 2 8 5 10c0 0-1 2-1 4l4 0c0-2-1-4-1-4c3-2 5-5 5-10c0-4-2-8-6-8z"/>
+                                        <path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 14 3 12.01 3c-1.98 0-3.86.47-5.57 1.41-.24.13-.54.04-.68-.2-.13-.24-.04-.55.2-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 6.03 1.52.25.13.34.43.21.67-.09.18-.26.28-.44.28zM3.5 9.72c-.1 0-.2-.03-.29-.09-.23-.16-.28-.47-.12-.7.99-1.4 2.25-2.5 3.75-3.27C9.98 4.04 14 4.03 17.15 5.65c1.5.77 2.76 1.86 3.75 3.25.16.22.11.54-.12.7-.23.16-.54.11-.7-.12-.9-1.26-2.04-2.25-3.39-2.94-2.87-1.47-6.54-1.47-9.4.01-1.36.7-2.5 1.7-3.4 2.96-.08.14-.23.21-.39.21zm6.25 12.07c-.13 0-.26-.05-.35-.15-.87-.87-1.34-1.43-2.01-2.64-.69-1.23-1.05-2.73-1.05-4.34 0-2.97 2.54-5.39 5.66-5.39s5.66 2.42 5.66 5.39c0 .28-.22.5-.5.5s-.5-.22-.5-.5c0-2.42-2.09-4.39-4.66-4.39-2.57 0-4.66 1.97-4.66 4.39 0 1.44.32 2.77.93 3.85.64 1.15 1.08 1.64 1.85 2.42.19.2.19.51 0 .71-.11.1-.24.15-.37.15zm7.17-1.85c-1.19 0-2.24-.3-3.1-.89-1.49-1.01-2.38-2.65-2.38-4.39 0-.28.22-.5.5-.5s.5.22.5.5c0 1.41.72 2.74 1.94 3.56.71.48 1.54.71 2.54.71.24 0 .64-.03 1.04-.1.27-.05.53.13.58.41.05.27-.13.53-.41.58-.57.11-1.07.12-1.21.12zM14.91 22c-.04 0-.09-.01-.13-.02-1.59-.44-2.63-1.03-3.72-2.1-1.4-1.39-2.17-3.24-2.17-5.22 0-1.62 1.38-2.94 3.08-2.94 1.7 0 3.08 1.32 3.08 2.94 0 1.07.93 1.94 2.08 1.94s2.08-.87 2.08-1.94c0-3.77-3.25-6.83-7.25-6.83-2.84 0-5.44 1.58-6.61 4.03-.39.81-.59 1.76-.59 2.8 0 .78.07 2.01.67 3.61.1.26-.03.55-.29.64-.26.1-.55-.03-.64-.29-.49-1.31-.73-2.61-.73-3.96 0-1.2.23-2.29.68-3.24 1.33-2.79 4.28-4.6 7.51-4.6 4.55 0 8.25 3.51 8.25 7.83 0 1.62-1.38 2.94-3.08 2.94s-3.08-1.32-3.08-2.94c0-1.07-.93-1.94-2.08-1.94s-2.08.87-2.08 1.94c0 1.71.66 3.31 1.87 4.51.95.94 1.86 1.46 3.27 1.85.27.07.42.35.35.61-.05.23-.26.38-.47.38z"/>
                                     </svg>
                                 </div>
                                 <div class="ev-pin-pointer"></div>
@@ -1014,7 +1006,7 @@
                         let popupContent = `
                             <div style="width:160px; text-align:center;">
                                 <img src="${ev.photo}" style="width:100%; border-radius:4px; margin-bottom:5px;">
-                                <div style="font-weight:bold; color:#FFD700; font-size:12px;">${ev.type.toUpperCase()}</div>
+                                <div style="font-weight:bold; color:#00ff41; font-size:12px;">${ev.type.toUpperCase()}</div>
                                 <div style="font-size:10px;">${ev.name}</div>
                             </div>
                         `;
@@ -1220,7 +1212,7 @@
                     <div class="ev-pin-container">
                         <div class="ev-pin-circle">
                             <svg class="ev-pin-svg" viewBox="0 0 24 24">
-                                <path d="M10 2C6 2 4 6 4 10c0 5 2 8 5 10c0 0-1 2-1 4l4 0c0-2-1-4-1-4c3-2 5-5 5-10c0-4-2-8-6-8z"/>
+                                <path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 14 3 12.01 3c-1.98 0-3.86.47-5.57 1.41-.24.13-.54.04-.68-.2-.13-.24-.04-.55.2-.68C7.82 2.52 9.86 2 12.01 2c2.13 0 3.99.47 6.03 1.52.25.13.34.43.21.67-.09.18-.26.28-.44.28zM3.5 9.72c-.1 0-.2-.03-.29-.09-.23-.16-.28-.47-.12-.7.99-1.4 2.25-2.5 3.75-3.27C9.98 4.04 14 4.03 17.15 5.65c1.5.77 2.76 1.86 3.75 3.25.16.22.11.54-.12.7-.23.16-.54.11-.7-.12-.9-1.26-2.04-2.25-3.39-2.94-2.87-1.47-6.54-1.47-9.4.01-1.36.7-2.5 1.7-3.4 2.96-.08.14-.23.21-.39.21zm6.25 12.07c-.13 0-.26-.05-.35-.15-.87-.87-1.34-1.43-2.01-2.64-.69-1.23-1.05-2.73-1.05-4.34 0-2.97 2.54-5.39 5.66-5.39s5.66 2.42 5.66 5.39c0 .28-.22.5-.5.5s-.5-.22-.5-.5c0-2.42-2.09-4.39-4.66-4.39-2.57 0-4.66 1.97-4.66 4.39 0 1.44.32 2.77.93 3.85.64 1.15 1.08 1.64 1.85 2.42.19.2.19.51 0 .71-.11.1-.24.15-.37.15zm7.17-1.85c-1.19 0-2.24-.3-3.1-.89-1.49-1.01-2.38-2.65-2.38-4.39 0-.28.22-.5.5-.5s.5.22.5.5c0 1.41.72 2.74 1.94 3.56.71.48 1.54.71 2.54.71.24 0 .64-.03 1.04-.1.27-.05.53.13.58.41.05.27-.13.53-.41.58-.57.11-1.07.12-1.21.12zM14.91 22c-.04 0-.09-.01-.13-.02-1.59-.44-2.63-1.03-3.72-2.1-1.4-1.39-2.17-3.24-2.17-5.22 0-1.62 1.38-2.94 3.08-2.94 1.7 0 3.08 1.32 3.08 2.94 0 1.07.93 1.94 2.08 1.94s2.08-.87 2.08-1.94c0-3.77-3.25-6.83-7.25-6.83-2.84 0-5.44 1.58-6.61 4.03-.39.81-.59 1.76-.59 2.8 0 .78.07 2.01.67 3.61.1.26-.03.55-.29.64-.26.1-.55-.03-.64-.29-.49-1.31-.73-2.61-.73-3.96 0-1.2.23-2.29.68-3.24 1.33-2.79 4.28-4.6 7.51-4.6 4.55 0 8.25 3.51 8.25 7.83 0 1.62-1.38 2.94-3.08 2.94s-3.08-1.32-3.08-2.94c0-1.07-.93-1.94-2.08-1.94s-2.08.87-2.08 1.94c0 1.71.66 3.31 1.87 4.51.95.94 1.86 1.46 3.27 1.85.27.07.42.35.35.61-.05.23-.26.38-.47.38z"/>
                             </svg>
                         </div>
                         <div class="ev-pin-pointer"></div>
@@ -1231,7 +1223,7 @@
                 let popupContent = `
                     <div style="width:160px; text-align:center;">
                         <img src="${currentPhotoBase64}" style="width:100%; border-radius:4px; margin-bottom:5px;">
-                        <div style="font-weight:bold; color:#FFD700; font-size:12px;">${state.evWizard.type.toUpperCase()}</div>
+                        <div style="font-weight:bold; color:#00ff41; font-size:12px;">${state.evWizard.type.toUpperCase()}</div>
                         <div style="font-size:10px;">${name}</div>
                     </div>
                 `;
