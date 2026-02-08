@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dragnet: Stealth Ops v17</title>
+    <title>Dragnet: Field Compass v18</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -297,18 +297,21 @@
         .icon-tree { background: transparent; display: flex; align-items: center; justify-content: center; }
         .icon-tree svg { width: 24px; height: 24px; stroke: #00ff41; stroke-width: 1.5; fill: none; opacity: 0.9; }
 
-        /* USER LOCATION PULSE */
+        /* USER LOCATION PULSE WITH CONE */
+        .user-pulse-container { position: relative; }
         .user-pulse {
             width: 20px; height: 20px; background: var(--neon-blue);
-            border-radius: 50%; position: relative; border: 2px solid #fff;
-            box-shadow: 0 0 10px var(--neon-blue);
+            border-radius: 50%; position: absolute; top: -10px; left: -10px; 
+            border: 2px solid #fff; box-shadow: 0 0 10px var(--neon-blue); z-index: 2;
         }
-        .user-pulse::after {
-            content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--neon-blue);
-            animation: radar-pulse 2s infinite;
+        .user-cone {
+            position: absolute; top: 0; left: 0; width: 0; height: 0;
+            border-left: 100px solid transparent; border-right: 100px solid transparent;
+            border-top: 150px solid rgba(0, 229, 255, 0.15); /* The View Cone */
+            transform-origin: bottom center; pointer-events: none; z-index: 1;
+            /* Center the tip of the cone at (0,0) which corresponds to the marker */
+            margin-left: -100px; margin-top: -150px; 
         }
-        @keyframes radar-pulse { 0% { width: 100%; height: 100%; opacity: 1; } 100% { width: 300%; height: 300%; opacity: 0; } }
 
         /* Drawing Instructions */
         #draw-guide { position: absolute; top: 80px; width: 100%; text-align: center; pointer-events: none; z-index: 1000; display: none; }
@@ -495,6 +498,7 @@
                 <span style="font-size:11px;font-weight:700;color:#888;">SPEED (KM/H)</span>
                 <input type="number" id="input-speed" class="big-input" value="5" min="1">
             </div>
+            
             <button id="btn-main" class="btn-action" onclick="toggleTracking()">INITIATE TRACKING</button>
         </div>
 
@@ -576,11 +580,13 @@
 
         // --- 2. STATE ---
         let db = JSON.parse(localStorage.getItem('dragnet_db')) || [];
+        // Default GPS to TRUE unless explicitly turned off
         let state = { 
             activeSuspectId: null, lastUpdateMinute: -1, tracking: false, drawMode: false, 
             drawPoints: [], drawMarkers: [], layerTransit: false, layerComm: false, layerNight: false, currentRadius: 0,
             activeEvFilter: null,
-            userTracking: localStorage.getItem('dragnet_gps') !== 'false' // Default True
+            userTracking: localStorage.getItem('dragnet_gps') !== 'false', 
+            compassHeading: 0
         };
         let timerInterval;
         let currentEditId = null;
@@ -605,10 +611,16 @@
 
         // --- 4. TRACKING LOGIC (SUSPECT & USER) ---
         
-        // Auto-Start GPS if enabled
-        if(state.userTracking) {
-            map.locate({watch: true, enableHighAccuracy: true});
+        // Auto-Start GPS
+        function initGPS() {
+            if(state.userTracking) {
+                map.locate({watch: true, enableHighAccuracy: true});
+                if (window.DeviceOrientationEvent) {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                }
+            }
         }
+        initGPS();
 
         function toggleUserTrackingSetting() {
             state.userTracking = !state.userTracking;
@@ -617,15 +629,54 @@
 
             if(state.userTracking) {
                 map.locate({watch: true, enableHighAccuracy: true});
+                if(typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    DeviceOrientationEvent.requestPermission().then(response => {
+                        if (response == 'granted') window.addEventListener('deviceorientation', handleOrientation);
+                    }).catch(console.error);
+                } else {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                }
             } else {
                 map.stopLocate();
                 userLayer.clearLayers();
+                window.removeEventListener('deviceorientation', handleOrientation);
+            }
+        }
+
+        // Compass Logic
+        function handleOrientation(event) {
+            let heading = 0;
+            if (event.webkitCompassHeading) {
+                heading = event.webkitCompassHeading; // iOS
+            } else if (event.alpha) {
+                heading = 360 - event.alpha; // Android (rough approx)
+            }
+            state.compassHeading = heading;
+            
+            // Rotate the cone element if it exists
+            let cone = document.querySelector('.user-cone');
+            if(cone) {
+                cone.style.transform = `rotate(${heading}deg)`;
             }
         }
 
         map.on('locationfound', function(e) {
             userLayer.clearLayers();
-            var pulseIcon = L.divIcon({ className: 'user-pulse', iconSize: [20, 20] });
+            
+            // Custom HTML Marker with Cone inside
+            let html = `
+                <div class="user-pulse-container">
+                    <div class="user-cone" style="transform: rotate(${state.compassHeading}deg);"></div>
+                    <div class="user-pulse"></div>
+                </div>
+            `;
+            
+            var pulseIcon = L.divIcon({ 
+                className: '', // No default class to avoid Leaflet styling conflicts
+                html: html, 
+                iconSize: [0, 0] // Center point is pivot
+            });
+            
             L.marker(e.latlng, {icon: pulseIcon}).addTo(userLayer);
             L.circle(e.latlng, e.accuracy / 2, { weight: 1, color: '#00e5ff', opacity: 0.3, fillOpacity: 0.05 }).addTo(userLayer);
         });
