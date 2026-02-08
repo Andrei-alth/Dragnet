@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dragnet: Evidence Dashboard v15</title>
+    <title>Dragnet: Stealth Ops v17</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -134,10 +134,8 @@
         .camera-box:hover { border-color: var(--neon-orange); color: var(--neon-orange); }
         .camera-icon { font-size: 32px; margin-bottom: 10px; }
         
-        /* New Category Dashboard */
-        #ev-dashboard {
-            display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;
-        }
+        /* Category Dashboard */
+        #ev-dashboard { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
         .ev-cat-chip {
             background: #222; border: 1px solid #444; color: #888;
             padding: 8px 12px; border-radius: var(--radius-sm);
@@ -145,12 +143,8 @@
             text-transform: uppercase; transition: all 0.2s;
             display: flex; align-items: center; gap: 6px;
         }
-        .ev-cat-chip.active {
-            background: rgba(255, 153, 0, 0.15); border-color: var(--neon-orange); color: #fff;
-        }
-        .ev-cat-count {
-            background: #444; color: #fff; padding: 2px 5px; border-radius: 4px; font-size: 9px;
-        }
+        .ev-cat-chip.active { background: rgba(255, 153, 0, 0.15); border-color: var(--neon-orange); color: #fff; }
+        .ev-cat-count { background: #444; color: #fff; padding: 2px 5px; border-radius: 4px; font-size: 9px; }
         .ev-cat-chip.active .ev-cat-count { background: var(--neon-orange); color: #000; }
 
         .ev-card {
@@ -303,6 +297,19 @@
         .icon-tree { background: transparent; display: flex; align-items: center; justify-content: center; }
         .icon-tree svg { width: 24px; height: 24px; stroke: #00ff41; stroke-width: 1.5; fill: none; opacity: 0.9; }
 
+        /* USER LOCATION PULSE */
+        .user-pulse {
+            width: 20px; height: 20px; background: var(--neon-blue);
+            border-radius: 50%; position: relative; border: 2px solid #fff;
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+        .user-pulse::after {
+            content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--neon-blue);
+            animation: radar-pulse 2s infinite;
+        }
+        @keyframes radar-pulse { 0% { width: 100%; height: 100%; opacity: 1; } 100% { width: 300%; height: 300%; opacity: 0; } }
+
         /* Drawing Instructions */
         #draw-guide { position: absolute; top: 80px; width: 100%; text-align: center; pointer-events: none; z-index: 1000; display: none; }
         #draw-guide span { background: rgba(255, 51, 51, 0.2); color: #ff3333; border: 1px solid #ff3333; padding: 4px 8px; font-size: 10px; font-weight: bold; border-radius: 4px; }
@@ -314,6 +321,7 @@
     <div id="settings-panel" onclick="toggleSettings()">
         <div class="settings-card" onclick="event.stopPropagation()">
             <div style="color:#fff;font-weight:bold;margin-bottom:20px;">INTERFACE CONFIG</div>
+            
             <div class="theme-option" id="opt-rounded" onclick="setTheme('rounded')">
                 <span style="color:#ccc;font-size:12px;">MODERN (RADIUS)</span>
                 <div class="theme-preview preview-rounded"></div>
@@ -322,6 +330,15 @@
                 <span style="color:#ccc;font-size:12px;">BRUTALIST (LINEAR)</span>
                 <div class="theme-preview preview-linear"></div>
             </div>
+
+            <div style="margin-top:20px; border-top:1px solid #333; padding-top:15px;">
+                <div style="color:#fff;font-weight:bold;margin-bottom:10px; font-size:10px; letter-spacing:1px;">SENSORS</div>
+                <div class="theme-option" id="opt-gps" onclick="toggleUserTrackingSetting()">
+                    <span style="color:#ccc;font-size:12px;">FIELD AGENT GPS</span>
+                    <div id="preview-gps" style="width:20px; height:20px; border-radius:50%; background:#333; border:1px solid #555;"></div>
+                </div>
+            </div>
+
             <button class="btn-delete-pro" style="margin-top:15px; color:#fff; border-color:#555;" onclick="toggleSettings()">CLOSE</button>
         </div>
     </div>
@@ -542,6 +559,18 @@
             let current = localStorage.getItem('dragnet_theme') || 'rounded';
             document.getElementById('opt-rounded').classList.toggle('selected', current !== 'linear');
             document.getElementById('opt-linear').classList.toggle('selected', current === 'linear');
+            
+            // Update GPS Icon in Settings
+            let gpsOn = state.userTracking;
+            let gpsPrev = document.getElementById('preview-gps');
+            let gpsOpt = document.getElementById('opt-gps');
+            if(gpsOn) {
+                gpsPrev.style.background = "#00e5ff"; gpsPrev.style.boxShadow = "0 0 8px #00e5ff";
+                gpsOpt.classList.add('selected');
+            } else {
+                gpsPrev.style.background = "#333"; gpsPrev.style.boxShadow = "none";
+                gpsOpt.classList.remove('selected');
+            }
         }
         if(localStorage.getItem('dragnet_theme') === 'linear') document.body.classList.add('theme-linear');
 
@@ -550,7 +579,8 @@
         let state = { 
             activeSuspectId: null, lastUpdateMinute: -1, tracking: false, drawMode: false, 
             drawPoints: [], drawMarkers: [], layerTransit: false, layerComm: false, layerNight: false, currentRadius: 0,
-            activeEvFilter: null // For Evidence Dashboard
+            activeEvFilter: null,
+            userTracking: localStorage.getItem('dragnet_gps') !== 'false' // Default True
         };
         let timerInterval;
         let currentEditId = null;
@@ -569,10 +599,37 @@
         var markerLayer = L.layerGroup().addTo(map);
         var densityLayer = L.layerGroup().addTo(map);
         var busLayer = L.layerGroup().addTo(map);
+        var userLayer = L.layerGroup().addTo(map);
         var drawLine;
         var currentCenter = map.getCenter();
 
-        // --- 4. TRACKING LOGIC ---
+        // --- 4. TRACKING LOGIC (SUSPECT & USER) ---
+        
+        // Auto-Start GPS if enabled
+        if(state.userTracking) {
+            map.locate({watch: true, enableHighAccuracy: true});
+        }
+
+        function toggleUserTrackingSetting() {
+            state.userTracking = !state.userTracking;
+            localStorage.setItem('dragnet_gps', state.userTracking);
+            updateThemeUI();
+
+            if(state.userTracking) {
+                map.locate({watch: true, enableHighAccuracy: true});
+            } else {
+                map.stopLocate();
+                userLayer.clearLayers();
+            }
+        }
+
+        map.on('locationfound', function(e) {
+            userLayer.clearLayers();
+            var pulseIcon = L.divIcon({ className: 'user-pulse', iconSize: [20, 20] });
+            L.marker(e.latlng, {icon: pulseIcon}).addTo(userLayer);
+            L.circle(e.latlng, e.accuracy / 2, { weight: 1, color: '#00e5ff', opacity: 0.3, fillOpacity: 0.05 }).addTo(userLayer);
+        });
+
         function toggleTracking() {
             let suspect = getActiveSuspect();
             if ((suspect && suspect.trackingData.isActive) || state.tracking) terminateTracking(); else initiateTracking();
@@ -840,25 +897,15 @@
         // --- NEW: EVIDENCE DASHBOARD & FILTERING ---
 
         function renderEvidenceDashboard(suspect) {
-            // 1. Calculate Counts
             let counts = {};
             if(suspect.evidence) {
-                suspect.evidence.forEach(ev => {
-                    counts[ev.type] = (counts[ev.type] || 0) + 1;
-                });
+                suspect.evidence.forEach(ev => { counts[ev.type] = (counts[ev.type] || 0) + 1; });
             }
 
-            // 2. Render Dashboard Chips
             let dashContainer = document.getElementById('ev-dashboard');
             let chipHTML = '';
             
-            // Map types to icons
-            const typeIcons = {
-                'Footprint': '👣',
-                'Paper': '📄',
-                'Material': '🧵',
-                'Object': '📦'
-            };
+            const typeIcons = { 'Footprint': '👣', 'Paper': '📄', 'Material': '🧵', 'Object': '📦' };
 
             for (const [type, count] of Object.entries(counts)) {
                 let activeClass = (state.activeEvFilter === type) ? 'active' : '';
@@ -870,20 +917,13 @@
                 `;
             }
             dashContainer.innerHTML = chipHTML;
-
-            // 3. Render List based on filter
             renderEvidenceList(suspect);
         }
 
         function filterEvidence(type) {
-            if (state.activeEvFilter === type) {
-                state.activeEvFilter = null; // Toggle OFF
-            } else {
-                state.activeEvFilter = type; // Toggle ON
-            }
-            
+            if (state.activeEvFilter === type) { state.activeEvFilter = null; } else { state.activeEvFilter = type; }
             let s = db.find(x => x.id === currentEditId);
-            renderEvidenceDashboard(s); // Re-render to update active classes
+            renderEvidenceDashboard(s); 
         }
 
         function renderEvidenceList(suspect) {
@@ -894,18 +934,11 @@
                 return;
             }
 
-            // FILTER LOGIC
             let displayList = suspect.evidence;
             if (state.activeEvFilter) {
                 displayList = suspect.evidence.filter(ev => ev.type === state.activeEvFilter);
             } else {
-                // If no filter, show nothing (clean look) OR show all? 
-                // Request said "click on that category it will show all". Implies initially hidden or showing only types?
-                // Let's hide the list if no filter is selected to keep it clean, as per "Zero-Clutter" request.
-                // container.innerHTML = '<div style="color:#444;font-size:10px;text-align:center;padding:5px;">SELECT A CATEGORY ABOVE TO VIEW LOGS</div>';
-                // actually, let's keep list hidden until clicked
-                container.innerHTML = '';
-                return;
+                container.innerHTML = ''; return;
             }
             
             container.innerHTML = displayList.map((ev, index) => `
@@ -987,11 +1020,8 @@
         function deleteEvidence(dateKey) {
             if(confirm("DELETE THIS EVIDENCE RECORD?")) {
                 let s = db.find(x => x.id === currentEditId);
-                // Filter out by unique date string (simple ID)
                 s.evidence = s.evidence.filter(ev => ev.date !== dateKey);
                 saveDB();
-                
-                // Refresh Dashboard & List
                 renderEvidenceDashboard(s);
             }
         }
