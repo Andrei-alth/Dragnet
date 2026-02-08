@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dragnet: Evidence Dashboard v15</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <link rel="manifest" href="manifest.json">
+
+    <style>
+        /* =========================================
+           1. CORE & THEME
+           ========================================= */
+        :root {
+            --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px;
+            --bg-glass: rgba(10, 10, 10, 0.95);
+            --neon-blue: #00e5ff; --neon-red: #ff3333; --neon-purple: #d400ff; --neon-green: #00ff41; --neon-orange: #ff9900;
+        }
+
+        body.theme-linear {
+            --radius-sm: 0px; --radius-md: 0px; --radius-lg: 0px; 
+            --bg-glass: #000000;
+        }
+
+        body { 
+            margin: 0; padding: 0; background: #000; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            overflow: hidden; color: #e0e0e0;
+        }
+
+        #map { height: 100vh; width: 100%; z-index: 1; background: #000; }
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        .leaflet-overlay-pane path { pointer-events: none; }
+        .leaflet-overlay-pane path.obstacle-poly { pointer-events: auto; }
+
+        /* =========================================
+           2. DOSSIER PANEL
+           ========================================= */
+        #dossier-panel {
+            position: fixed; top: 0; left: 0; height: 100%; width: 100%; max-width: 400px;
+            background: #0f0f0f; border-right: 1px solid #333; z-index: 2000;
+            transform: translateX(-100%); transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+            display: flex; flex-direction: column; box-shadow: 20px 0 50px rgba(0,0,0,0.8);
+        }
+        #dossier-panel.open { transform: translateX(0); }
+
+        .dossier-header {
+            height: 60px; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; background: #111; border-bottom: 1px solid #333; flex-shrink: 0;
+        }
+        .panel-title { color: #888; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+        .panel-close { font-size: 24px; background: none; border: none; color: #666; cursor: pointer; padding: 10px; }
+
+        /* LIST VIEW */
+        #view-list { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        #suspect-list-container { flex: 1; overflow-y: auto; padding: 15px; }
+        
+        .suspect-card {
+            background: #181818; border: 1px solid #333; padding: 16px; margin-bottom: 12px;
+            border-radius: var(--radius-sm); cursor: pointer; position: relative; display: flex; 
+            justify-content: space-between; align-items: center; transition: all 0.2s;
+        }
+        .suspect-card:active { transform: scale(0.98); background: #222; }
+        .suspect-card.tracking { border: 1px solid var(--neon-blue); background: rgba(0, 229, 255, 0.05); }
+        .card-name { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+        .card-detail { font-size: 12px; color: #777; }
+        
+        .btn-edit-icon { 
+            width: 36px; height: 36px; background: #222; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; color: #888;
+            border: 1px solid #333; transition: all 0.2s;
+        }
+        .btn-edit-icon:hover { color: #fff; border-color: #fff; }
+
+        .btn-add-wrapper { padding: 20px; background: #111; border-top: 1px solid #333; }
+        .btn-add-big { 
+            width: 100%; padding: 14px; background: var(--neon-blue); color: #000;
+            border: none; border-radius: var(--radius-sm); font-weight: 700; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        /* FORM VIEW */
+        #view-form { display: none; flex-direction: column; height: 100%; background: #0f0f0f; }
+        .form-content { flex: 1; padding: 20px; overflow-y: auto; padding-bottom: 80px; }
+        .form-section {
+            background: #181818; border: 1px solid #2a2a2a;
+            border-radius: var(--radius-md); padding: 15px; margin-bottom: 20px;
+        }
+        .section-label {
+            font-size: 10px; color: var(--neon-blue); font-weight: bold; letter-spacing: 1.5px;
+            text-transform: uppercase; margin-bottom: 15px; display: block; opacity: 0.8;
+        }
+        .form-group { margin-bottom: 15px; }
+        .input-label { display: block; font-size: 11px; color: #aaa; margin-bottom: 6px; }
+        .modern-input { 
+            width: 100%; padding: 12px 12px; background: #0a0a0a; border: 1px solid #333; 
+            color: #fff; border-radius: var(--radius-sm); font-size: 14px; outline: none;
+            transition: border-color 0.3s; font-family: inherit; color-scheme: dark;
+        }
+        .modern-input:focus { border-color: var(--neon-blue); }
+
+        /* ANALYTICS */
+        .btn-calc-algo {
+            width: 100%; padding: 12px; margin-top: 10px;
+            background: linear-gradient(90deg, #222, #331a33);
+            border: 1px solid var(--neon-purple); color: var(--neon-purple);
+            font-family: 'Courier New', monospace; font-weight: bold;
+            cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+            transition: all 0.3s; border-radius: var(--radius-sm);
+        }
+        .btn-calc-algo:hover { background: var(--neon-purple); color: #000; box-shadow: 0 0 15px rgba(212, 0, 255, 0.4); }
+        .calc-screen {
+            margin-top: 15px; background: #000; border: 1px solid #333; 
+            padding: 15px; text-align: center; border-radius: var(--radius-sm); display: none;
+        }
+        .calc-screen.active { display: block; animation: flashIn 0.5s; }
+        #calc-result-val { font-size: 32px; font-weight: 800; color: #fff; margin-top: 5px; }
+        .calc-breakdown { font-size: 10px; color: #666; margin-top: 8px; font-family: 'Courier New', monospace; border-top: 1px solid #222; padding-top: 5px; }
+        @keyframes flashIn { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
+
+        /* --- EVIDENCE SYSTEM --- */
+        #view-evidence { display: none; flex-direction: column; height: 100%; background: #0f0f0f; }
+        
+        .camera-box {
+            border: 2px dashed #444; background: #0a0a0a; border-radius: var(--radius-sm);
+            padding: 30px 20px; text-align: center; cursor: pointer; color: #888;
+            font-weight: bold; font-size: 12px; transition: all 0.3s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .camera-box:hover { border-color: var(--neon-orange); color: var(--neon-orange); }
+        .camera-icon { font-size: 32px; margin-bottom: 10px; }
+        
+        /* New Category Dashboard */
+        #ev-dashboard {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;
+        }
+        .ev-cat-chip {
+            background: #222; border: 1px solid #444; color: #888;
+            padding: 8px 12px; border-radius: var(--radius-sm);
+            font-size: 10px; font-weight: bold; cursor: pointer;
+            text-transform: uppercase; transition: all 0.2s;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .ev-cat-chip.active {
+            background: rgba(255, 153, 0, 0.15); border-color: var(--neon-orange); color: #fff;
+        }
+        .ev-cat-count {
+            background: #444; color: #fff; padding: 2px 5px; border-radius: 4px; font-size: 9px;
+        }
+        .ev-cat-chip.active .ev-cat-count { background: var(--neon-orange); color: #000; }
+
+        .ev-card {
+            background: #111; border: 1px solid #333; padding: 10px; border-radius: var(--radius-sm);
+            margin-bottom: 10px; display: flex; align-items: center; gap: 12px; position: relative;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .ev-thumb { width: 48px; height: 48px; background: #000; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid #444; }
+        .ev-info { flex: 1; overflow: hidden; }
+        .ev-title { color: #fff; font-size: 13px; font-weight: bold; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;}
+        .ev-meta { color: #888; font-size: 10px; margin-top: 4px; text-transform: uppercase; }
+        .ev-delete { position: absolute; right: 10px; top: 10px; color: #ff3333; background: none; border: none; font-size: 14px; cursor: pointer; }
+
+        /* ACTIONS */
+        .form-actions {
+            padding: 20px; background: #111; border-top: 1px solid #333;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .btn-save-pro {
+            width: 100%; padding: 16px; background: var(--neon-blue); color: #000;
+            border: none; border-radius: var(--radius-sm); font-weight: 700; font-size: 14px;
+            letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+        }
+        .btn-secure-ev { background: var(--neon-orange); }
+
+        .btn-delete-pro {
+            width: 100%; padding: 12px; background: transparent; color: var(--neon-red);
+            border: 1px solid #333; border-radius: var(--radius-sm); font-weight: 600; font-size: 12px;
+            cursor: pointer; text-transform: uppercase; transition: all 0.2s;
+        }
+
+        /* =========================================
+           3. HUD & CONTROLS
+           ========================================= */
+        #btn-menu, #btn-settings { 
+            position: absolute; top: 20px; z-index: 1500; 
+            background: #000; border: 1px solid #333; color: #fff; 
+            width: 44px; height: 44px; border-radius: var(--radius-md); 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 20px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            touch-action: manipulation;
+        }
+        #btn-menu { left: 20px; }
+        #btn-settings { right: 20px; color: #666; }
+        
+        #status-display { 
+            position: absolute; top: 20px; left: 80px; right: 80px; z-index: 1000; 
+            background: var(--bg-glass); padding: 12px; 
+            border: 1px solid #333; border-radius: var(--radius-md); 
+            color: #888; font-size: 12px; font-weight: 700; text-align: center; 
+            font-family: 'Courier New', monospace; letter-spacing: 1px;
+        }
+        .status-active { border-color: var(--neon-blue) !important; color: var(--neon-blue) !important; }
+        .status-hot { border-color: var(--neon-red) !important; color: var(--neon-red) !important; animation: pulse 1s infinite; }
+
+        /* Control Deck */
+        #control-deck { 
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); 
+            z-index: 1000; width: 94%; max-width: 420px; 
+            background: var(--bg-glass); border: 1px solid #333; 
+            border-radius: var(--radius-lg); overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .deck-tabs { display: flex; border-bottom: 1px solid #333; }
+        .tab-btn { 
+            flex: 1; padding: 14px; background: transparent; color: #666; border: none; 
+            font-weight: 600; cursor: pointer; touch-action: manipulation; 
+        }
+        .tab-btn.active { background: #222; color: #fff; border-bottom: 2px solid var(--neon-blue); }
+        .tab-content { padding: 20px; display: none; }
+        .tab-content.active { display: block; }
+        
+        .control-row { 
+            display: flex; align-items: center; justify-content: space-between; 
+            margin-bottom: 12px; background: rgba(255,255,255,0.03); 
+            padding: 10px 15px; border-radius: var(--radius-sm); 
+        }
+        .big-input {
+            width: 80px; padding: 8px; font-family: 'Courier New', monospace;
+            font-size: 20px; font-weight: bold; text-align: center;
+            background: #222; border: 1px solid #444; color: #fff;
+            border-radius: var(--radius-sm); outline: none; transition: all 0.3s;
+        }
+        
+        .vapor-locked { background: #081a1a !important; border-color: var(--neon-blue) !important; color: var(--neon-blue) !important; pointer-events: none; }
+        .input-hot { background: #2a0808 !important; border-color: var(--neon-red) !important; color: var(--neon-red) !important; }
+
+        .btn-action { 
+            width: 100%; padding: 16px; background: rgba(0, 229, 255, 0.1); 
+            border: 1px solid var(--neon-blue); color: var(--neon-blue); font-weight: 700; border-radius: var(--radius-sm);
+            cursor: pointer; text-transform: uppercase; font-size: 13px; letter-spacing: 1px;
+            touch-action: manipulation;
+        }
+        .btn-action.terminate { border-color: var(--neon-red); color: var(--neon-red); background: rgba(255, 51, 51, 0.1); }
+        
+        #btn-assign { 
+            display: none; width: 100%; padding: 12px; margin-bottom: 15px; 
+            background: #e69500; border: none; color: #000; border-radius: var(--radius-sm);
+            font-weight: bold; cursor: pointer; text-transform: uppercase; 
+            animation: pulse 2s infinite; 
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+
+        /* --- TACTICAL GRID & ICONS --- */
+        .intel-grid-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn-intel-toggle {
+            background: #151515; border: 1px solid #333; color: #555;
+            padding: 12px; border-radius: var(--radius-sm); cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: all 0.1s; height: 80px; position: relative; touch-action: manipulation;
+        }
+        .intel-icon svg { width: 28px; height: 28px; stroke: #555; stroke-width: 1.5; fill: none; transition: stroke 0.2s; }
+        .intel-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-top: 8px; transition: color 0.2s; }
+
+        /* Active States */
+        .btn-intel-toggle.active-transit { border-color: var(--neon-blue); background: rgba(0, 229, 255, 0.08); }
+        .btn-intel-toggle.active-transit svg { stroke: var(--neon-blue); }
+        .btn-intel-toggle.active-transit .intel-label { color: var(--neon-blue); }
+
+        .btn-intel-toggle.active-comm { border-color: var(--neon-purple); background: rgba(212, 0, 255, 0.08); }
+        .btn-intel-toggle.active-comm svg { stroke: var(--neon-purple); }
+        .btn-intel-toggle.active-comm .intel-label { color: var(--neon-purple); }
+
+        .btn-intel-toggle.active-night { border-color: var(--neon-green); background: rgba(0, 255, 65, 0.08); }
+        .btn-intel-toggle.active-night svg { stroke: var(--neon-green); }
+        .btn-intel-toggle.active-night .intel-label { color: var(--neon-green); }
+
+        .btn-intel-toggle.draw-mode { border-color: var(--neon-red); background: rgba(255, 51, 51, 0.08); }
+
+        .btn-intel-toggle.loading { opacity: 0.5; pointer-events: none; }
+        .btn-intel-toggle.loading::after {
+            content: ''; position: absolute; inset: 0; border: 2px solid rgba(255,255,255,0.1); animation: borderPulse 0.8s infinite;
+        }
+        @keyframes borderPulse { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+
+        /* Settings Panel */
+        #settings-panel { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2100; display: none; align-items: center; justify-content: center; }
+        #settings-panel.open { display: flex; }
+        .settings-card { background: #111; border: 1px solid #333; width: 90%; max-width: 300px; padding: 20px; border-radius: var(--radius-lg); text-align: center; }
+        .theme-option { display: flex; align-items: center; justify-content: space-between; background: #1a1a1a; padding: 15px; margin-bottom: 10px; border: 1px solid #333; border-radius: var(--radius-sm); cursor: pointer; }
+        .theme-option.selected { border-color: var(--neon-blue); background: rgba(0, 229, 255, 0.1); }
+        .theme-preview { width: 20px; height: 20px; background: #333; border: 1px solid #555; }
+        .preview-rounded { border-radius: 6px; } .preview-linear { border-radius: 0px; }
+
+        /* Markers & Icons */
+        .icon-density { background: rgba(212, 0, 255, 0.2); border: 1px solid #d400ff; border-radius: 50%; box-shadow: 0 0 10px #d400ff; }
+        .icon-density-inner { width: 6px; height: 6px; background: #d400ff; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .icon-bus { background: #000; border: 2px solid #00e5ff; color: #00e5ff; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; font-size: 10px; border-radius: 50%; font-weight: bold; }
+        .icon-tree { background: transparent; display: flex; align-items: center; justify-content: center; }
+        .icon-tree svg { width: 24px; height: 24px; stroke: #00ff41; stroke-width: 1.5; fill: none; opacity: 0.9; }
+
+        /* Drawing Instructions */
+        #draw-guide { position: absolute; top: 80px; width: 100%; text-align: center; pointer-events: none; z-index: 1000; display: none; }
+        #draw-guide span { background: rgba(255, 51, 51, 0.2); color: #ff3333; border: 1px solid #ff3333; padding: 4px 8px; font-size: 10px; font-weight: bold; border-radius: 4px; }
+
+    </style>
+</head>
+<body>
+
+    <div id="settings-panel" onclick="toggleSettings()">
+        <div class="settings-card" onclick="event.stopPropagation()">
+            <div style="color:#fff;font-weight:bold;margin-bottom:20px;">INTERFACE CONFIG</div>
+            <div class="theme-option" id="opt-rounded" onclick="setTheme('rounded')">
+                <span style="color:#ccc;font-size:12px;">MODERN (RADIUS)</span>
+                <div class="theme-preview preview-rounded"></div>
+            </div>
+            <div class="theme-option" id="opt-linear" onclick="setTheme('linear')">
+                <span style="color:#ccc;font-size:12px;">BRUTALIST (LINEAR)</span>
+                <div class="theme-preview preview-linear"></div>
+            </div>
+            <button class="btn-delete-pro" style="margin-top:15px; color:#fff; border-color:#555;" onclick="toggleSettings()">CLOSE</button>
+        </div>
+    </div>
+
+    <div id="dossier-panel">
+        <div id="view-list">
+            <div class="dossier-header">
+                <span class="panel-title">DATABASE</span>
+                <button class="panel-close" onclick="toggleDossier()">×</button>
+            </div>
+            <div id="suspect-list-container"></div>
+            <div class="btn-add-wrapper">
+                <button class="btn-add-big" onclick="createBlankProfile()">+ CREATE TARGET</button>
+            </div>
+        </div>
+
+        <div id="view-form">
+            <div class="dossier-header">
+                <button class="panel-close" onclick="switchView('list')">←</button>
+                <span class="panel-title">TARGET PROFILE</span>
+                <div style="width:24px;"></div>
+            </div>
+            <div class="form-content">
+                <div class="form-section">
+                    <span class="section-label">01 // IDENTITY</span>
+                    <div class="form-group">
+                        <label class="input-label">FULL NAME / ALIAS</label>
+                        <input type="text" id="edit-name" class="modern-input" placeholder="Enter identifier...">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <span class="section-label">02 // BIOMETRICS</span>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div>
+                            <label class="input-label">AGE ESTIMATE</label>
+                            <input type="text" id="edit-age" class="modern-input" placeholder="AGE (EST)">
+                        </div>
+                        <div>
+                            <label class="input-label">WEIGHT</label>
+                            <input type="text" id="edit-weight" class="modern-input" placeholder="WEIGHT (EST)">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <span class="section-label">03 // INTEL ASSESSMENT (I)</span>
+                    <label class="input-label">BEHAVIORAL INTELLIGENCE</label>
+                    <select id="edit-intel" class="modern-input">
+                        <option value="Low">LOW (Impulsive / Erratic) [0.2]</option>
+                        <option value="Mid">AVERAGE (Common Paths) [0.5]</option>
+                        <option value="High">HIGH (Counter-Surveillance) [0.9]</option>
+                    </select>
+                </div>
+
+                <div class="form-section" style="border-color: var(--neon-purple);">
+                    <span class="section-label" style="color: #fff;">04 // PREDICTIVE ANALYTICS</span>
+                    
+                    <div class="form-group">
+                        <label class="input-label">CURRENT ENVIRONMENT (D)</label>
+                        <select id="edit-factor-env" class="modern-input">
+                            <option value="High">HIGH DENSITY (Mall/Station) [1.0]</option>
+                            <option value="Res">RESIDENTIAL (Street) [0.3]</option>
+                            <option value="Open">OPEN TERRAIN (Park/Field) [0.1]</option>
+                        </select>
+                    </div>
+                    <button class="btn-calc-algo" onclick="runBlendingCalc()">RUN BLENDING ALGORITHM</button>
+                    <div id="calc-result-screen" class="calc-screen">
+                        <div style="font-size:9px; color:#666;">BLENDING PROBABILITY</div>
+                        <div id="calc-result-val">--%</div>
+                        <div id="calc-breakdown" class="calc-breakdown"></div>
+                    </div>
+                </div>
+
+                <div class="form-section" style="border-color: var(--neon-orange);">
+                    <span class="section-label" style="color: #fff;">05 // EVIDENCE LOG</span>
+                    
+                    <div id="ev-dashboard"></div>
+
+                    <div id="evidence-list-container"></div>
+                    
+                    <button class="btn-action" style="margin-top:10px; border-color: var(--neon-orange); color: var(--neon-orange); background: rgba(255, 153, 0, 0.1);" onclick="openEvidenceForm()">+ LOG NEW EVIDENCE</button>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn-save-pro" onclick="commitSave()">SAVE TO DATABASE</button>
+                    <button class="btn-delete-pro" onclick="deleteSuspect()">DELETE PROFILE</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-evidence">
+            <div class="dossier-header">
+                <button class="panel-close" onclick="switchView('form')">←</button>
+                <span class="panel-title">EVIDENCE ENTRY</span>
+                <div style="width:24px;"></div>
+            </div>
+            <div class="form-content">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label class="input-label">EVIDENCE TYPE</label>
+                        <select id="ev-type" class="modern-input">
+                            <option value="Footprint">👣 FOOTPRINT / TIRE TRACK</option>
+                            <option value="Paper">📄 DOCUMENT / PAPER</option>
+                            <option value="Material">🧵 FIBER / MATERIAL</option>
+                            <option value="Object">📦 PHYSICAL OBJECT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="input-label">LOG NAME</label>
+                        <input type="text" id="ev-name" class="modern-input" placeholder="e.g. Muddy Boot Print (Size 10)">
+                    </div>
+                    <div class="form-group">
+                        <label class="input-label">DATE / TIME DISCOVERED</label>
+                        <input type="datetime-local" id="ev-date" class="modern-input">
+                    </div>
+                    
+                    <label class="input-label" style="margin-top:20px;">PHOTOGRAPHIC RECORD</label>
+                    <div class="camera-box" id="ev-camera-box" onclick="document.getElementById('ev-photo-input').click()">
+                        <div class="camera-icon" id="ev-camera-icon">📷</div>
+                        <span id="ev-photo-prompt">TAP TO OPEN CAMERA</span>
+                        <img id="ev-photo-preview" style="display:none; width:100%; border-radius:var(--radius-sm); margin-top:10px; border: 1px solid #444;">
+                    </div>
+                    <input type="file" id="ev-photo-input" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoUpload(event)">
+                </div>
+                
+                <div class="form-actions">
+                    <button class="btn-save-pro btn-secure-ev" onclick="saveEvidence()">SECURE EVIDENCE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="btn-menu" onclick="toggleDossier()">📂</div>
+    <div id="btn-settings" onclick="toggleSettings()">⚙</div>
+    
+    <div id="status-display">SYSTEM READY</div>
+    <div id="draw-guide"><span>TAP TO ADD POINT • TAP START TO CLOSE</span></div>
+    <div id="map"></div>
+
+    <div id="control-deck">
+        <div class="deck-tabs">
+            <button class="tab-btn active" onclick="switchTab('controls')">Controls</button>
+            <button class="tab-btn" onclick="switchTab('intel')">Geo/Intel</button>
+        </div>
+        
+        <div id="tab-controls" class="tab-content active">
+            <button id="btn-assign" onclick="editActiveProfile()">⚠ UNKNOWN TARGET: SAVE DATA</button>
+            <div class="control-row">
+                <span style="font-size:11px;font-weight:700;color:#888;">ELAPSED TIME (MIN)</span>
+                <input type="number" id="input-minutes" class="big-input" value="0" min="0">
+            </div>
+            <div class="control-row">
+                <span style="font-size:11px;font-weight:700;color:#888;">SPEED (KM/H)</span>
+                <input type="number" id="input-speed" class="big-input" value="5" min="1">
+            </div>
+            <button id="btn-main" class="btn-action" onclick="toggleTracking()">INITIATE TRACKING</button>
+        </div>
+
+        <div id="tab-intel" class="tab-content">
+            <button id="btn-draw-obs" class="btn-action" style="border-color:#555; color:#aaa; margin-bottom:15px;" onclick="toggleDrawMode()">DRAW OBSTACLE</button>
+            <div class="intel-grid-controls">
+                <div id="btn-intel-transit" class="btn-intel-toggle" onclick="toggleLayer('transit')">
+                    <div class="intel-icon">
+                        <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M4 11h16" /><path d="M8 15h.01" /><path d="M16 15h.01" /><path d="M7 19h10" /></svg>
+                    </div>
+                    <div class="intel-label">TRANSIT</div>
+                </div>
+                <div id="btn-intel-comm" class="btn-intel-toggle" onclick="toggleLayer('comm')">
+                    <div class="intel-icon">
+                        <svg viewBox="0 0 24 24"><path d="M3 21h18" /><path d="M5 21V7l8-4 8 4v14" /><path d="M9 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" /></svg>
+                    </div>
+                    <div class="intel-label">SECTOR SCAN</div>
+                </div>
+                <div id="btn-intel-night" class="btn-intel-toggle" onclick="toggleLayer('night')">
+                    <div class="intel-icon">
+                        <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    </div>
+                    <div class="intel-label">NIGHT OPS</div>
+                </div>
+                <div class="btn-intel-toggle" onclick="wipeMap(); toggleLayer('reset')">
+                    <div class="intel-icon">
+                        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </div>
+                    <div class="intel-label">CLEAR INTEL</div>
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:5px;">
+                <div style="background:#222; padding:10px; border-radius:4px; text-align:center;">
+                    <div style="font-size:9px; color:#666;">RADIUS</div>
+                    <div id="intel-rad" style="font-family:'Courier New'; color:var(--neon-blue); font-weight:bold;">0.00 KM</div>
+                </div>
+                <div style="background:#222; padding:10px; border-radius:4px; text-align:center;">
+                    <div style="font-size:9px; color:#666;">AREA</div>
+                    <div id="intel-area" style="font-family:'Courier New'; color:var(--neon-blue); font-weight:bold;">0.00 KM²</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. SETTINGS & THEME ---
+        function toggleSettings() {
+            document.getElementById('settings-panel').classList.toggle('open');
+            updateThemeUI();
+        }
+        function setTheme(themeName) {
+            if(themeName === 'linear') {
+                document.body.classList.add('theme-linear');
+                localStorage.setItem('dragnet_theme', 'linear');
+            } else {
+                document.body.classList.remove('theme-linear');
+                localStorage.setItem('dragnet_theme', 'rounded');
+            }
+            updateThemeUI();
+        }
+        function updateThemeUI() {
+            let current = localStorage.getItem('dragnet_theme') || 'rounded';
+            document.getElementById('opt-rounded').classList.toggle('selected', current !== 'linear');
+            document.getElementById('opt-linear').classList.toggle('selected', current === 'linear');
+        }
+        if(localStorage.getItem('dragnet_theme') === 'linear') document.body.classList.add('theme-linear');
+
+        // --- 2. STATE ---
+        let db = JSON.parse(localStorage.getItem('dragnet_db')) || [];
+        let state = { 
+            activeSuspectId: null, lastUpdateMinute: -1, tracking: false, drawMode: false, 
+            drawPoints: [], drawMarkers: [], layerTransit: false, layerComm: false, layerNight: false, currentRadius: 0,
+            activeEvFilter: null // For Evidence Dashboard
+        };
+        let timerInterval;
+        let currentEditId = null;
+
+        // Evidence State
+        let currentPhotoBase64 = null; 
+
+        // --- 3. MAP INIT ---
+        var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([51.505, -0.09], 14);
+        var layerDay = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 });
+        var layerNight = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+
+        layerDay.addTo(map);
+        var searchLayer = L.layerGroup().addTo(map);
+        var obstacleLayer = L.layerGroup().addTo(map);
+        var markerLayer = L.layerGroup().addTo(map);
+        var densityLayer = L.layerGroup().addTo(map);
+        var busLayer = L.layerGroup().addTo(map);
+        var drawLine;
+        var currentCenter = map.getCenter();
+
+        // --- 4. TRACKING LOGIC ---
+        function toggleTracking() {
+            let suspect = getActiveSuspect();
+            if ((suspect && suspect.trackingData.isActive) || state.tracking) terminateTracking(); else initiateTracking();
+        }
+
+        function initiateTracking() {
+            if (!state.activeSuspectId) createGhostProfile();
+            let suspect = getActiveSuspect();
+            let startMins = parseInt(document.getElementById('input-minutes').value) || 0;
+            
+            suspect.trackingData.isActive = true;
+            suspect.trackingData.startTime = Date.now() - (startMins * 60 * 1000);
+            suspect.trackingData.startLoc = currentCenter; 
+            suspect.trackingData.speed = parseInt(document.getElementById('input-speed').value) || 5;
+
+            state.tracking = true; 
+            saveDB(); loadSuspectToUI(suspect); startGlobalLoop();
+        }
+
+        function terminateTracking() {
+            let suspect = getActiveSuspect();
+            state.tracking = false; clearInterval(timerInterval);
+            if(suspect) {
+                if(suspect.isGhost === true) {
+                    db = db.filter(s => s.id !== suspect.id);
+                    state.activeSuspectId = null;
+                    saveDB(); wipeMap(); resetUI();
+                } else {
+                    suspect.trackingData.isActive = false;
+                    saveDB(); loadSuspectToUI(suspect);
+                }
+            } else { resetUI(); wipeMap(); }
+        }
+
+        function wipeMap() {
+            searchLayer.clearLayers(); markerLayer.clearLayers(); obstacleLayer.clearLayers();
+            densityLayer.clearLayers(); busLayer.clearLayers();
+            document.getElementById('intel-rad').innerText = "0.00 KM";
+            document.getElementById('intel-area').innerText = "0.00 KM²";
+            state.layerTransit = false; state.layerComm = false; state.currentRadius = 0;
+            updateLayerUI();
+        }
+
+        function resetUI() {
+            let minInput = document.getElementById('input-minutes');
+            let speedInput = document.getElementById('input-speed');
+            minInput.readOnly = false; speedInput.readOnly = false;
+            minInput.className = 'big-input'; speedInput.className = 'big-input';
+            document.getElementById('status-display').className = '';
+            document.getElementById('status-display').innerText = "SYSTEM READY";
+            document.getElementById('btn-main').innerText = "INITIATE TRACKING"; 
+            document.getElementById('btn-main').classList.remove('terminate');
+            document.getElementById('btn-assign').style.display = 'none';
+            minInput.value = 0;
+        }
+
+        function startGlobalLoop() { if(timerInterval) clearInterval(timerInterval); timerInterval = setInterval(updateLoop, 100); }
+        
+        function updateLoop() {
+            if (!state.tracking) return;
+            let suspect = getActiveSuspect();
+            if (!suspect || !suspect.trackingData.isActive) { state.tracking = false; return; }
+
+            let diffMs = Date.now() - suspect.trackingData.startTime;
+            let realElapsedMins = Math.floor(diffMs / 60000);
+            let speed = suspect.trackingData.speed;
+
+            document.getElementById('input-minutes').value = realElapsedMins;
+            document.getElementById('input-speed').value = speed;
+            
+            let isHot = realElapsedMins < 2;
+            document.getElementById('status-display').innerText = `${isHot ? "HOT PHASE" : "COLD PHASE"}: ${suspect.name}`;
+
+            if (isHot) {
+                document.getElementById('status-display').className = 'status-hot';
+                document.getElementById('input-minutes').className = 'big-input input-hot';
+            } else {
+                document.getElementById('status-display').className = 'status-active';
+                document.getElementById('input-minutes').className = 'big-input vapor-locked';
+            }
+
+            let radiusMeters = isHot ? (speed * (diffMs / 3600000)) * 1000 : (speed * (Math.max(realElapsedMins, state.lastUpdateMinute) / 60)) * 1000;
+            if(!isHot) state.lastUpdateMinute = realElapsedMins;
+
+            state.currentRadius = radiusMeters;
+            updateMapWithGeometry(radiusMeters, suspect, isHot);
+        }
+
+        function updateMapWithGeometry(radiusMeters, suspect, isHot) {
+            let center = suspect.trackingData.startLoc || currentCenter;
+            let centerPoint = turf.point([center.lng, center.lat]);
+            let circleGeo = turf.circle(centerPoint, radiusMeters / 1000, {steps: 64, units: 'kilometers'});
+
+            if (suspect.obstacles) suspect.obstacles.forEach(obsCoords => { try { circleGeo = turf.difference(circleGeo, turf.polygon([obsCoords])); } catch (e) {} });
+
+            searchLayer.clearLayers(); markerLayer.clearLayers();
+            L.marker(center).addTo(markerLayer);
+            
+            let color = isHot ? '#ff3333' : '#00e5ff';
+            if (circleGeo) L.geoJSON(circleGeo, { 
+                style: { color: color, fillColor: color, fillOpacity: 0.15, weight: 2 },
+                interactive: false
+            }).addTo(searchLayer);
+            
+            document.getElementById('intel-rad').innerText = (radiusMeters/1000).toFixed(3) + " KM";
+            document.getElementById('intel-area').innerText = circleGeo ? (turf.area(circleGeo) / 1000000).toFixed(2) + " KM²" : "0.00";
+        }
+
+        // --- 5. DOSSIER & ANALYTICS ---
+        function toggleDossier() {
+            let panel = document.getElementById('dossier-panel');
+            panel.classList.toggle('open');
+            if (panel.classList.contains('open')) { renderList(); switchView('list'); }
+        }
+
+        function switchView(view) {
+            document.getElementById('view-list').style.display = view === 'list' ? 'flex' : 'none';
+            document.getElementById('view-form').style.display = view === 'form' ? 'flex' : 'none';
+            document.getElementById('view-evidence').style.display = view === 'evidence' ? 'flex' : 'none';
+            if(view === 'list') renderList();
+        }
+
+        function renderList() {
+            let container = document.getElementById('suspect-list-container');
+            if (db.length === 0) { container.innerHTML = '<div style="color:#444;text-align:center;margin-top:20px;">NO TARGETS</div>'; return; }
+            container.innerHTML = db.map(s => {
+                let activeClass = s.trackingData.isActive ? 'tracking' : '';
+                return `
+                <div class="suspect-card ${activeClass}" onclick="loadSuspectContext(${s.id})">
+                    <div>
+                        <div class="card-name">${s.name}</div>
+                        <div class="card-detail">AGE: ${s.age || '??'} | WT: ${s.weight || '??'}</div>
+                    </div>
+                    <div class="btn-edit-icon" onclick="event.stopPropagation(); openEditMode(${s.id})">✎</div>
+                </div>`;
+            }).join('');
+        }
+
+        function createBlankProfile() {
+            let newS = { id: Date.now(), isGhost: false, name: "NEW TARGET", age: "", weight: "", intel: "Mid", trackingData: { isActive: false }, evidence: [] };
+            db.push(newS); saveDB();
+            state.activeSuspectId = newS.id; state.tracking = false; resetUI(); openEditMode(newS.id);
+        }
+
+        function createGhostProfile() {
+            let ghost = { id: Date.now(), isGhost: true, name: "UNKNOWN SUBJECT", age: "", weight: "", intel: "Mid", trackingData: { isActive: false }, evidence: [] };
+            db.push(ghost); state.activeSuspectId = ghost.id; saveDB();
+        }
+
+        function openEditMode(id) {
+            currentEditId = id;
+            let s = db.find(x => x.id === id);
+            
+            document.getElementById('edit-name').value = s.name.includes("UNKNOWN") ? "" : s.name;
+            document.getElementById('edit-age').value = s.age || "";
+            document.getElementById('edit-weight').value = s.weight || "";
+            document.getElementById('edit-intel').value = s.intel;
+            document.getElementById('edit-factor-env').value = s.factorEnv || "Res";
+            
+            let screen = document.getElementById('calc-result-screen');
+            if(s.blendingData) {
+                screen.classList.add('active');
+                document.getElementById('calc-result-val').innerText = s.blendingData.score + "%";
+                document.getElementById('calc-result-val').style.color = s.blendingData.color;
+                document.getElementById('calc-breakdown').innerText = s.blendingData.break;
+            } else {
+                screen.classList.remove('active');
+            }
+
+            state.activeEvFilter = null; // Reset filter on new open
+            renderEvidenceDashboard(s);
+            switchView('form');
+        }
+
+        function runBlendingCalc() {
+            let iRaw = document.getElementById('edit-intel').value;
+            let dRaw = document.getElementById('edit-factor-env').value;
+            let ageInput = document.getElementById('edit-age').value;
+            let numbers = ageInput.match(/\d+/g);
+            let calculatedAge = 0; let ageType = "UNKNOWN";
+            
+            if (numbers && numbers.length > 0) {
+                let sum = 0; numbers.forEach(n => sum += parseInt(n)); calculatedAge = sum / numbers.length;
+            }
+
+            let I = (iRaw === 'High') ? 0.9 : (iRaw === 'Mid') ? 0.5 : 0.2;
+            let A = 0.4; 
+            if (calculatedAge >= 25 && calculatedAge <= 45) { A = 0.9; ageType = "PRIME"; } else { ageType = "OUTLIER"; }
+            if (calculatedAge === 0) ageType = "NO DATA";
+            let D = (dRaw === 'High') ? 1.0 : (dRaw === 'Res') ? 0.3 : 0.1;
+
+            let rawScore = (I * 0.5) + (A * 0.2) + (D * 0.3);
+            let percentage = Math.round(rawScore * 100);
+
+            let screen = document.getElementById('calc-result-screen');
+            let valDisplay = document.getElementById('calc-result-val');
+            let breakDisplay = document.getElementById('calc-breakdown');
+            
+            screen.classList.add('active');
+            valDisplay.innerText = percentage + "%";
+            let breakdownText = `INTEL:${iRaw.toUpperCase()} | AGE:${ageType} | ENV:${dRaw.toUpperCase()}`;
+            breakDisplay.innerText = breakdownText;
+            
+            let finalColor = "#00e5ff";
+            if(percentage > 70) finalColor = "#ff3333"; else if(percentage > 40) finalColor = "#e69500";
+            valDisplay.style.color = finalColor;
+
+            let s = db.find(x => x.id === currentEditId);
+            if(s) { s.blendingData = { score: percentage, break: breakdownText, color: finalColor }; saveDB(); }
+            if(!state.layerComm) toggleLayer('comm');
+        }
+
+        function commitSave() {
+            let s = db.find(x => x.id === currentEditId);
+            s.name = document.getElementById('edit-name').value || "UNKNOWN";
+            s.age = document.getElementById('edit-age').value || "";
+            s.weight = document.getElementById('edit-weight').value || "";
+            s.intel = document.getElementById('edit-intel').value;
+            s.factorEnv = document.getElementById('edit-factor-env').value;
+            s.isGhost = false; 
+            saveDB();
+            if (state.activeSuspectId === currentEditId) loadSuspectToUI(s);
+            switchView('list');
+        }
+
+        function deleteSuspect() {
+            if(!confirm("DELETE PERMANENTLY?")) return;
+            if (state.activeSuspectId === currentEditId) terminateTracking();
+            db = db.filter(s => s.id !== currentEditId);
+            saveDB(); switchView('list');
+        }
+
+        function loadSuspectContext(id) {
+            state.activeSuspectId = id; state.lastUpdateMinute = -1;
+            let suspect = getActiveSuspect();
+            state.tracking = suspect.trackingData.isActive;
+            obstacleLayer.clearLayers(); densityLayer.clearLayers(); busLayer.clearLayers();
+            state.layerComm = false; state.layerTransit = false; updateLayerUI();
+
+            if(suspect.obstacles) suspect.obstacles.forEach(coords => { L.polygon(coords.map(p => [p[1], p[0]]), {color: 'red', fillColor: '#500', fillOpacity: 0.5}).addTo(obstacleLayer); });
+            if(suspect.trackingData.isActive && suspect.trackingData.startLoc) { map.setView(suspect.trackingData.startLoc, 14); startGlobalLoop(); } else { resetUI(); wipeMap(); }
+            loadSuspectToUI(suspect);
+            document.getElementById('dossier-panel').classList.remove('open');
+        }
+
+        function loadSuspectToUI(suspect) {
+            let btn = document.getElementById('btn-main');
+            let status = document.getElementById('status-display');
+            let assignBtn = document.getElementById('btn-assign');
+            let minInput = document.getElementById('input-minutes');
+            
+            if (suspect.trackingData.isActive) {
+                minInput.classList.add('vapor-locked'); status.className = 'status-active';
+                btn.innerText = "TERMINATE TRACKING"; btn.classList.add('terminate');
+                assignBtn.style.display = suspect.isGhost ? 'block' : 'none';
+            } else {
+                minInput.classList.remove('vapor-locked'); status.innerText = `READY: ${suspect.name}`;
+            }
+        }
+
+        function editActiveProfile() {
+            if(state.activeSuspectId) { openEditMode(state.activeSuspectId); document.getElementById('dossier-panel').classList.add('open'); }
+        }
+
+        // --- NEW: EVIDENCE DASHBOARD & FILTERING ---
+
+        function renderEvidenceDashboard(suspect) {
+            // 1. Calculate Counts
+            let counts = {};
+            if(suspect.evidence) {
+                suspect.evidence.forEach(ev => {
+                    counts[ev.type] = (counts[ev.type] || 0) + 1;
+                });
+            }
+
+            // 2. Render Dashboard Chips
+            let dashContainer = document.getElementById('ev-dashboard');
+            let chipHTML = '';
+            
+            // Map types to icons
+            const typeIcons = {
+                'Footprint': '👣',
+                'Paper': '📄',
+                'Material': '🧵',
+                'Object': '📦'
+            };
+
+            for (const [type, count] of Object.entries(counts)) {
+                let activeClass = (state.activeEvFilter === type) ? 'active' : '';
+                chipHTML += `
+                    <div class="ev-cat-chip ${activeClass}" onclick="filterEvidence('${type}')">
+                        ${typeIcons[type] || ''} ${type}
+                        <span class="ev-cat-count">${count}</span>
+                    </div>
+                `;
+            }
+            dashContainer.innerHTML = chipHTML;
+
+            // 3. Render List based on filter
+            renderEvidenceList(suspect);
+        }
+
+        function filterEvidence(type) {
+            if (state.activeEvFilter === type) {
+                state.activeEvFilter = null; // Toggle OFF
+            } else {
+                state.activeEvFilter = type; // Toggle ON
+            }
+            
+            let s = db.find(x => x.id === currentEditId);
+            renderEvidenceDashboard(s); // Re-render to update active classes
+        }
+
+        function renderEvidenceList(suspect) {
+            let container = document.getElementById('evidence-list-container');
+            
+            if(!suspect.evidence || suspect.evidence.length === 0) {
+                container.innerHTML = '<div style="color:#555;font-size:11px;text-align:center;padding:10px;">NO EVIDENCE SECURED</div>';
+                return;
+            }
+
+            // FILTER LOGIC
+            let displayList = suspect.evidence;
+            if (state.activeEvFilter) {
+                displayList = suspect.evidence.filter(ev => ev.type === state.activeEvFilter);
+            } else {
+                // If no filter, show nothing (clean look) OR show all? 
+                // Request said "click on that category it will show all". Implies initially hidden or showing only types?
+                // Let's hide the list if no filter is selected to keep it clean, as per "Zero-Clutter" request.
+                // container.innerHTML = '<div style="color:#444;font-size:10px;text-align:center;padding:5px;">SELECT A CATEGORY ABOVE TO VIEW LOGS</div>';
+                // actually, let's keep list hidden until clicked
+                container.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = displayList.map((ev, index) => `
+                <div class="ev-card">
+                    <img src="${ev.photo}" class="ev-thumb" alt="ev-img">
+                    <div class="ev-info">
+                        <div class="ev-title">${ev.name}</div>
+                        <div class="ev-meta">${ev.type} | ${new Date(ev.date).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</div>
+                    </div>
+                    <button class="ev-delete" onclick="deleteEvidence('${ev.date}')">✕</button> 
+                </div>
+            `).join('');
+        }
+
+        function openEvidenceForm() {
+            document.getElementById('ev-name').value = '';
+            let now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('ev-date').value = now.toISOString().slice(0,16);
+            
+            currentPhotoBase64 = null;
+            document.getElementById('ev-photo-preview').style.display = 'none';
+            document.getElementById('ev-photo-prompt').style.display = 'block';
+            document.getElementById('ev-camera-icon').style.display = 'block';
+            document.getElementById('ev-camera-box').style.padding = '30px 20px';
+            
+            switchView('evidence');
+        }
+
+        function handlePhotoUpload(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            document.getElementById('ev-photo-prompt').innerText = "PROCESSING...";
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 1200;
+                    let width = img.width; let height = img.height;
+
+                    if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } } 
+                    else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    let preview = document.getElementById('ev-photo-preview');
+                    preview.src = currentPhotoBase64; preview.style.display = 'block';
+                    document.getElementById('ev-photo-prompt').style.display = 'none';
+                    document.getElementById('ev-camera-icon').style.display = 'none';
+                    document.getElementById('ev-camera-box').style.padding = '10px';
+                }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function saveEvidence() {
+            let type = document.getElementById('ev-type').value;
+            let name = document.getElementById('ev-name').value || "Unnamed Intel";
+            let date = document.getElementById('ev-date').value;
+
+            if(!currentPhotoBase64) { alert("PHOTO RECORD REQUIRED."); return; }
+
+            let s = db.find(x => x.id === currentEditId);
+            if(!s) return;
+            if(!s.evidence) s.evidence = [];
+
+            s.evidence.push({ type: type, name: name, date: date, photo: currentPhotoBase64 });
+            saveDB();
+            openEditMode(currentEditId);
+        }
+
+        function deleteEvidence(dateKey) {
+            if(confirm("DELETE THIS EVIDENCE RECORD?")) {
+                let s = db.find(x => x.id === currentEditId);
+                // Filter out by unique date string (simple ID)
+                s.evidence = s.evidence.filter(ev => ev.date !== dateKey);
+                saveDB();
+                
+                // Refresh Dashboard & List
+                renderEvidenceDashboard(s);
+            }
+        }
+
+
+        // --- 6. TOOLS & GEOMETRY & LAYERS ---
+        async function toggleLayer(type) {
+            if(type === 'reset') {
+                state.layerTransit = false; state.layerComm = false; state.layerNight = false;
+                updateLayerUI(); map.removeLayer(layerNight); layerDay.addTo(map);
+                return;
+            }
+
+            if(type === 'night') {
+                state.layerNight = !state.layerNight;
+                if(state.layerNight) { map.removeLayer(layerDay); layerNight.addTo(map); }
+                else { map.removeLayer(layerNight); layerDay.addTo(map); }
+                updateLayerUI();
+                return;
+            }
+
+            if(type === 'transit' || type === 'comm') {
+                let btnId = type === 'transit' ? 'btn-intel-transit' : 'btn-intel-comm';
+                let btn = document.getElementById(btnId);
+                
+                if(type === 'transit') state.layerTransit = !state.layerTransit;
+                if(type === 'comm') state.layerComm = !state.layerComm;
+                
+                updateLayerUI(); 
+
+                if(type === 'transit' && !state.layerTransit) { busLayer.clearLayers(); return; }
+                if(type === 'comm' && !state.layerComm) { densityLayer.clearLayers(); return; }
+
+                let scanRadius = state.currentRadius > 0 ? state.currentRadius : 1500; 
+                btn.classList.add('loading');
+
+                try {
+                    let lat = currentCenter.lat; let lon = currentCenter.lng;
+                    let suspect = getActiveSuspect();
+                    if(suspect && suspect.trackingData.isActive && suspect.trackingData.startLoc) { lat = suspect.trackingData.startLoc.lat; lon = suspect.trackingData.startLoc.lng; }
+
+                    if(type === 'transit') {
+                        let query = `[out:json][timeout:25];(node["highway"="bus_stop"](around:${scanRadius},${lat},${lon}););out body;`;
+                        let r = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: "data=" + encodeURIComponent(query) });
+                        let d = await r.json();
+                        busLayer.clearLayers();
+                        var busIcon = L.divIcon({ className: 'icon-bus', html: 'B', iconSize: [20, 20] });
+                        d.elements.forEach(e => { L.marker([e.lat, e.lon], {icon: busIcon}).addTo(busLayer); });
+                    }
+                    if(type === 'comm') {
+                        let query = `[out:json][timeout:25];
+                        (
+                          node["shop"~"mall|department_store|supermarket"](around:${scanRadius},${lat},${lon});
+                          way["shop"~"mall|department_store|supermarket"](around:${scanRadius},${lat},${lon});
+                          node["landuse"="retail"](around:${scanRadius},${lat},${lon});
+                          node["amenity"="marketplace"](around:${scanRadius},${lat},${lon});
+                          node["leisure"="park"](around:${scanRadius},${lat},${lon});
+                          way["leisure"="park"](around:${scanRadius},${lat},${lon});
+                          relation["leisure"="park"](around:${scanRadius},${lat},${lon});
+                          node["landuse"="grass"](around:${scanRadius},${lat},${lon});
+                          way["landuse"="grass"](around:${scanRadius},${lat},${lon});
+                        );
+                        out geom;`;
+                        let r = await fetch("https://overpass-api.de/api/interpreter", { method: "POST", body: "data=" + encodeURIComponent(query) });
+                        let d = await r.json();
+                        densityLayer.clearLayers();
+                        
+                        d.elements.forEach(e => {
+                            let isPark = (e.tags.leisure === 'park' || e.tags.landuse === 'grass' || e.tags.landuse === 'recreation_ground');
+                            if (isPark && e.type === 'way' && e.geometry) {
+                                let latlngs = e.geometry.map(pt => [pt.lat, pt.lon]);
+                                L.polygon(latlngs, { color: '#00ff41', weight: 1, fillColor: '#00ff41', fillOpacity: 0.1 }).addTo(densityLayer);
+                                let turfCoords = e.geometry.map(pt => [pt.lon, pt.lat]);
+                                if (turfCoords.length > 0 && (turfCoords[0][0] !== turfCoords[turfCoords.length-1][0] || turfCoords[0][1] !== turfCoords[turfCoords.length-1][1])) { turfCoords.push(turfCoords[0]); }
+                                try {
+                                    let poly = turf.polygon([turfCoords]); let area = turf.area(poly);
+                                    if (area > 10000) {
+                                        let center = L.polygon(latlngs).getBounds().getCenter();
+                                        let treeIcon = L.divIcon({ className: 'icon-tree', html: '<svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z" stroke="#00ff41" fill="none" stroke-width="2"/><line x1="12" y1="22" x2="12" y2="16" stroke="#00ff41" stroke-width="2"/></svg>', iconSize: [24, 24] });
+                                        L.marker(center, {icon: treeIcon}).addTo(densityLayer);
+                                    }
+                                } catch(err) { }
+                            } else {
+                                let pLat = e.lat || (e.bounds ? (e.bounds.minlat + e.bounds.maxlat)/2 : null); let pLon = e.lon || (e.bounds ? (e.bounds.minlon + e.bounds.maxlon)/2 : null);
+                                if(pLat && pLon && !isPark) {
+                                    let icon = L.divIcon({ className: 'icon-density', html: '<div class="icon-density-inner"></div>', iconSize: [20, 20] });
+                                    L.marker([pLat, pLon], {icon: icon}).addTo(densityLayer);
+                                }
+                            }
+                        });
+                    }
+                } catch(e) { console.log("Intel Scan Failed", e); }
+                btn.classList.remove('loading');
+            }
+        }
+
+        function updateLayerUI() {
+            document.getElementById('btn-intel-transit').classList.toggle('active-transit', state.layerTransit);
+            document.getElementById('btn-intel-comm').classList.toggle('active-comm', state.layerComm);
+            document.getElementById('btn-intel-night').classList.toggle('active-night', state.layerNight);
+        }
+
+        function toggleDrawMode() {
+            state.drawMode = !state.drawMode;
+            let btn = document.getElementById('btn-draw-obs');
+            let guide = document.getElementById('draw-guide');
+            
+            if (state.drawMode) {
+                btn.innerText = "DRAWING ACTIVE (TAP MAP)"; btn.classList.add('draw-mode');
+                state.drawPoints = []; state.drawMarkers = []; map.getContainer().style.cursor = 'crosshair'; guide.style.display = 'block';
+            } else {
+                btn.innerText = "DRAW OBSTACLE"; btn.classList.remove('draw-mode');
+                map.getContainer().style.cursor = ''; guide.style.display = 'none';
+                state.drawMarkers.forEach(m => map.removeLayer(m)); state.drawMarkers = [];
+                if(drawLine) { map.removeLayer(drawLine); drawLine = null; }
+            }
+        }
+        
+        map.on('click', function(e) {
+            if (!state.drawMode) {
+                if (!state.tracking) { currentCenter = e.latlng; markerLayer.clearLayers(); L.marker(currentCenter).addTo(markerLayer); } return;
+            }
+            let clickLat = e.latlng.lat; let clickLng = e.latlng.lng;
+            if (state.drawPoints.length > 2) {
+                let startPoint = L.latLng(state.drawPoints[0][1], state.drawPoints[0][0]);
+                let dist = startPoint.distanceTo(e.latlng);
+                if (dist < 30) { closeObstacle(); return; }
+            }
+            state.drawPoints.push([clickLng, clickLat]);
+            let vMarker = L.circleMarker(e.latlng, {radius: 4, color: '#ff3333', fillColor:'#ff3333', fillOpacity:1}).addTo(map);
+            state.drawMarkers.push(vMarker);
+            let visualPoints = state.drawPoints.map(p => [p[1], p[0]]);
+            if (drawLine) map.removeLayer(drawLine);
+            drawLine = L.polyline(visualPoints, {color: '#ff3333', weight: 3}).addTo(map);
+        });
+
+        function closeObstacle() {
+            state.drawPoints.push(state.drawPoints[0]);
+            let suspect = getActiveSuspect();
+            if (!suspect) { createGhostProfile(); suspect = getActiveSuspect(); }
+            if (!suspect.obstacles) suspect.obstacles = [];
+            suspect.obstacles.push(state.drawPoints);
+            saveDB();
+            let visualPoints = state.drawPoints.map(p => [p[1], p[0]]);
+            let poly = L.polygon(visualPoints, { color: '#ff3333', fillColor: '#500', fillOpacity: 0.5, className: 'obstacle-poly' }).addTo(obstacleLayer);
+            poly.on('click', function() {
+                if(confirm("DELETE OBSTACLE?")) { suspect.obstacles.pop(); saveDB(); obstacleLayer.removeLayer(this); }
+            });
+            toggleDrawMode();
+        }
+
+        function getActiveSuspect() { return db.find(s => s.id === state.activeSuspectId); }
+        function saveDB() { localStorage.setItem('dragnet_db', JSON.stringify(db)); }
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+            if(tab === 'controls') { document.getElementById('tab-controls').classList.add('active'); document.querySelectorAll('.tab-btn')[0].classList.add('active'); }
+            else { document.getElementById('tab-intel').classList.add('active'); document.querySelectorAll('.tab-btn')[1].classList.add('active'); }
+        }
+
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
+        map.locate({setView: true, maxZoom: 15});
+        map.on('locationfound', function(e) { currentCenter = e.latlng; });
+        startGlobalLoop();
+
+    </script>
+</body>
+</html>
