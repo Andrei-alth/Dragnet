@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dragnet: Evidence Wizard v20</title>
+    <title>Dragnet: Geo-Evidence v21</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -317,6 +317,17 @@
         .user-marker { display: flex; align-items: center; justify-content: center; transition: transform 0.1s linear; }
         .user-chevron { width: 16px; height: 16px; fill: var(--neon-blue); filter: drop-shadow(0 0 4px var(--neon-blue)); }
 
+        /* Evidence Marker */
+        .icon-evidence {
+            background: transparent;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .icon-evidence svg {
+            width: 32px; height: 32px;
+            fill: var(--neon-orange);
+            filter: drop-shadow(0 0 6px var(--neon-orange));
+        }
+
         /* Drawing Instructions */
         #draw-guide { position: absolute; top: 80px; width: 100%; text-align: center; pointer-events: none; z-index: 1000; display: none; }
         #draw-guide span { background: rgba(255, 51, 51, 0.2); color: #ff3333; border: 1px solid #ff3333; padding: 4px 8px; font-size: 10px; font-weight: bold; border-radius: 4px; }
@@ -422,8 +433,11 @@
 
                 <div class="form-section" style="border-color: var(--neon-orange);">
                     <span class="section-label" style="color: #fff;">05 // EVIDENCE LOG</span>
+                    
                     <div id="ev-dashboard"></div>
+
                     <div id="evidence-list-container"></div>
+                    
                     <button class="btn-action" style="margin-top:10px; border-color: var(--neon-orange); color: var(--neon-orange); background: rgba(255, 153, 0, 0.1);" onclick="openEvidenceForm()">+ LOG NEW EVIDENCE</button>
                 </div>
 
@@ -634,6 +648,7 @@
         var densityLayer = L.layerGroup().addTo(map);
         var busLayer = L.layerGroup().addTo(map);
         var userLayer = L.layerGroup().addTo(map);
+        var evidenceLayer = L.layerGroup().addTo(map); // NEW LAYER FOR EVIDENCE MARKERS
         var drawLine;
         var currentCenter = map.getCenter();
 
@@ -690,6 +705,7 @@
 
         map.on('locationfound', function(e) {
             userLayer.clearLayers();
+            currentCenter = e.latlng; // Update global current center to GPS position when found
             
             // CIA TACTICAL MARKER (Small rotating arrowhead)
             let iconHtml = `
@@ -751,7 +767,7 @@
 
         function wipeMap() {
             searchLayer.clearLayers(); markerLayer.clearLayers(); obstacleLayer.clearLayers();
-            densityLayer.clearLayers(); busLayer.clearLayers();
+            densityLayer.clearLayers(); busLayer.clearLayers(); evidenceLayer.clearLayers();
             document.getElementById('intel-rad').innerText = "0.00 KM";
             document.getElementById('intel-area').innerText = "0.00 KM²";
             state.layerTransit = false; state.layerComm = false; state.currentRadius = 0;
@@ -884,7 +900,7 @@
                 screen.classList.remove('active');
             }
 
-            state.activeEvFilter = null; 
+            state.activeEvFilter = null; // Reset filter on new open
             renderEvidenceDashboard(s);
             switchView('form');
         }
@@ -951,10 +967,35 @@
             state.activeSuspectId = id; state.lastUpdateMinute = -1;
             let suspect = getActiveSuspect();
             state.tracking = suspect.trackingData.isActive;
-            obstacleLayer.clearLayers(); densityLayer.clearLayers(); busLayer.clearLayers();
+            obstacleLayer.clearLayers(); densityLayer.clearLayers(); busLayer.clearLayers(); evidenceLayer.clearLayers();
             state.layerComm = false; state.layerTransit = false; updateLayerUI();
 
             if(suspect.obstacles) suspect.obstacles.forEach(coords => { L.polygon(coords.map(p => [p[1], p[0]]), {color: 'red', fillColor: '#500', fillOpacity: 0.5}).addTo(obstacleLayer); });
+            
+            // --- LOAD EVIDENCE MARKERS ---
+            if(suspect.evidence) {
+                suspect.evidence.forEach(ev => {
+                    if(ev.location) {
+                        let evIcon = L.divIcon({ 
+                            className: 'icon-evidence', 
+                            html: '<svg viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5a1 1 0 0 0 .4.8l2.1 1.7A10 10 0 0 0 12 22a10 10 0 0 0 5.5-4l2.1-1.7a1 1 0 0 0 .4-.8V6c0-3.5-4-4-8-4z" opacity="0.8"/></svg>', 
+                            iconSize: [24, 24] 
+                        });
+                        let marker = L.marker([ev.location.lat, ev.location.lng], {icon: evIcon}).addTo(evidenceLayer);
+                        
+                        // Popup with image
+                        let popupContent = `
+                            <div style="width:160px; text-align:center;">
+                                <img src="${ev.photo}" style="width:100%; border-radius:4px; margin-bottom:5px;">
+                                <div style="font-weight:bold; color:#ff9900; font-size:12px;">${ev.type.toUpperCase()}</div>
+                                <div style="font-size:10px;">${ev.name}</div>
+                            </div>
+                        `;
+                        marker.bindPopup(popupContent);
+                    }
+                });
+            }
+
             if(suspect.trackingData.isActive && suspect.trackingData.startLoc) { map.setView(suspect.trackingData.startLoc, 14); startGlobalLoop(); } else { resetUI(); wipeMap(); }
             loadSuspectToUI(suspect);
             document.getElementById('dossier-panel').classList.remove('open');
@@ -989,6 +1030,7 @@
 
             let dashContainer = document.getElementById('ev-dashboard');
             let chipHTML = '';
+            
             const typeIcons = { 'Footprint': '👣', 'Paper': '📄', 'Material': '🧵', 'Object': '📦' };
 
             for (const [type, count] of Object.entries(counts)) {
@@ -1131,8 +1173,37 @@
             if(!s) return;
             if(!s.evidence) s.evidence = [];
 
-            s.evidence.push({ type: state.evWizard.type, name: name, date: date, photo: currentPhotoBase64 });
+            // CAPTURE GPS LOCATION (Using current map center/user location)
+            let geoLoc = { lat: currentCenter.lat, lng: currentCenter.lng };
+
+            s.evidence.push({ 
+                type: state.evWizard.type, 
+                name: name, 
+                date: date, 
+                photo: currentPhotoBase64,
+                location: geoLoc 
+            });
+            
             saveDB();
+            
+            // Immediately render on map if this suspect is active context
+            if(state.activeSuspectId === currentEditId) {
+                let evIcon = L.divIcon({ 
+                    className: 'icon-evidence', 
+                    html: '<svg viewBox="0 0 24 24"><path d="M12 2c-4 0-8 .5-8 4v9.5a1 1 0 0 0 .4.8l2.1 1.7A10 10 0 0 0 12 22a10 10 0 0 0 5.5-4l2.1-1.7a1 1 0 0 0 .4-.8V6c0-3.5-4-4-8-4z" opacity="0.8"/></svg>', 
+                    iconSize: [24, 24] 
+                });
+                let marker = L.marker([geoLoc.lat, geoLoc.lng], {icon: evIcon}).addTo(evidenceLayer);
+                let popupContent = `
+                    <div style="width:160px; text-align:center;">
+                        <img src="${currentPhotoBase64}" style="width:100%; border-radius:4px; margin-bottom:5px;">
+                        <div style="font-weight:bold; color:#ff9900; font-size:12px;">${state.evWizard.type.toUpperCase()}</div>
+                        <div style="font-size:10px;">${name}</div>
+                    </div>
+                `;
+                marker.bindPopup(popupContent);
+            }
+
             openEditMode(currentEditId);
         }
 
@@ -1142,6 +1213,8 @@
                 s.evidence = s.evidence.filter(ev => ev.date !== dateKey);
                 saveDB();
                 renderEvidenceDashboard(s);
+                // Ideally also remove from map, but a reload handles it for now
+                if(state.activeSuspectId === currentEditId) loadSuspectContext(currentEditId);
             }
         }
 
@@ -1219,7 +1292,7 @@
                                     let poly = turf.polygon([turfCoords]); let area = turf.area(poly);
                                     if (area > 10000) {
                                         let center = L.polygon(latlngs).getBounds().getCenter();
-                                        let treeIcon = L.divIcon({ className: 'icon-tree', html: '<svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z" stroke="#00ff41" stroke-width="2"/><line x1="12" y1="22" x2="12" y2="16" stroke="#00ff41" stroke-width="2"/></svg>', iconSize: [24, 24] });
+                                        let treeIcon = L.divIcon({ className: 'icon-tree', html: '<svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z" stroke="#00ff41" fill="none" stroke-width="2"/><line x1="12" y1="22" x2="12" y2="16" stroke="#00ff41" stroke-width="2"/></svg>', iconSize: [24, 24] });
                                         L.marker(center, {icon: treeIcon}).addTo(densityLayer);
                                     }
                                 } catch(err) { }
